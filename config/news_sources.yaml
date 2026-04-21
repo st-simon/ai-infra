@@ -1,0 +1,252 @@
+# 新闻简报配置文件
+# 权重说明：weight 决定该类别在简报中的内容占比
+# enabled: true/false 随时开关某个来源
+# priority: 1=主力来源(必读) 2=补充来源(按权重选读) 3=备用来源
+
+briefing:
+  title: "每日简报"
+  max_items_per_category: 8      # 每类别最多抓取条目数
+  summary_length: 150            # 每条摘要字数上限（中文）
+  output_language: "zh"          # 简报输出语言
+
+categories:
+
+  # ──────────────────────────────────────────
+  # 一、政治 & 突发事件  30%
+  # ──────────────────────────────────────────
+  politics:
+    label: "政治 & 突发事件"
+    weight: 0.30
+    max_items: 8
+    sources:
+
+      - name: "Reuters World"
+        url: "https://feeds.reuters.com/reuters/worldNews"
+        priority: 1
+        enabled: true
+        note: "事实底色，首选"
+
+      - name: "Associated Press"
+        url: "https://feeds.apnews.com/apnews/world"
+        priority: 1
+        enabled: true
+        note: "独立事实核查，配合Reuters互补"
+
+      - name: "BBC News World"
+        url: "http://feeds.bbci.co.uk/news/world/rss.xml"
+        priority: 1
+        enabled: true
+        note: "地域解析能力强，中立视角"
+
+      - name: "Financial Times World"
+        url: "https://www.ft.com/world?format=rss"
+        priority: 1
+        enabled: true
+        note: "政经交叉深度"
+
+      - name: "The Economist"
+        url: "https://www.economist.com/international/rss.xml"
+        priority: 2
+        enabled: true
+        note: "解释性背景，非速报"
+
+      - name: "Politico"
+        url: "https://rss.politico.com/politics-news.xml"
+        priority: 2
+        enabled: true
+        note: "美国政策/立法/监管深度，不适合速读"
+
+      - name: "Axios"
+        url: "https://api.axios.com/feed/"
+        priority: 2
+        enabled: true
+        note: "简洁美国政策速报"
+
+      - name: "The Hill"
+        url: "https://thehill.com/rss/syndicator/19109"
+        priority: 3
+        enabled: false
+        note: "美国国会动态，备用"
+
+  # ──────────────────────────────────────────
+  # 二、财经  30%
+  # ──────────────────────────────────────────
+  finance:
+    label: "财经"
+    weight: 0.30
+    max_items: 8
+    sources:
+
+      - name: "Bloomberg Markets"
+        url: "https://feeds.bloomberg.com/markets/news.rss"
+        priority: 1
+        enabled: true
+        note: "财经主力，市场数据最及时"
+
+      - name: "Reuters Business"
+        url: "https://feeds.reuters.com/reuters/businessNews"
+        priority: 1
+        enabled: true
+        note: "与Bloomberg互补，更偏事实"
+
+      - name: "Financial Times"
+        url: "https://www.ft.com/rss/home"
+        priority: 1
+        enabled: true
+        note: "深度财经分析"
+
+      - name: "Wall Street Journal"
+        url: "https://feeds.a.dj.com/rss/RSSWorldNews.xml"
+        priority: 1
+        enabled: true
+        note: "美国企业/政策视角"
+
+      - name: "The Economist Finance"
+        url: "https://www.economist.com/finance-and-economics/rss.xml"
+        priority: 2
+        enabled: true
+        note: "解释性财经背景"
+
+      - name: "Caixin Global"
+        url: "https://www.caixinglobal.com/rss/rss.xml"
+        priority: 2
+        enabled: true
+        note: "中国经济财讯，英文版"
+
+      - name: "Nikkei Asia"
+        url: "https://asia.nikkei.com/rss/feed/nar"
+        priority: 2
+        enabled: true
+        note: "亚太财经视角"
+
+      - name: "Barron's"
+        url: "https://www.barrons.com/xml/rss/3_7004.xml"
+        priority: 3
+        enabled: false
+        note: "美股投资，按需开启"
+
+      - name: "MarketWatch"
+        url: "http://feeds.marketwatch.com/marketwatch/topstories"
+        priority: 3
+        enabled: false
+        note: "美国市场速报，备用"
+
+  # ──────────────────────────────────────────
+  # 三、科技  25%
+  # ──────────────────────────────────────────
+  tech:
+    label: "科技"
+    weight: 0.25
+    max_items: 6
+    sources:
+
+      - name: "TechCrunch"
+        url: "https://techcrunch.com/feed/"
+        priority: 1
+        enabled: true
+        note: "创业/VC/产品，主力"
+
+      - name: "Ars Technica"
+        url: "http://feeds.arstechnica.com/arstechnica/index"
+        priority: 1
+        enabled: true
+        note: "技术深度，与TechCrunch互补"
+
+      - name: "Financial Times Tech"
+        url: "https://www.ft.com/technology?format=rss"
+        priority: 1
+        enabled: true
+        note: "科技政策/监管/商业影响"
+
+      - name: "The Verge"
+        url: "https://www.theverge.com/rss/index.xml"
+        priority: 2
+        enabled: true
+        note: "产品/社会影响，消费科技视角"
+
+      - name: "WIRED"
+        url: "https://www.wired.com/feed/rss"
+        priority: 2
+        enabled: true
+        note: "科技与社会文化交叉"
+
+      - name: "Reuters Technology"
+        url: "https://feeds.reuters.com/reuters/technologyNews"
+        priority: 2
+        enabled: true
+        note: "科技事实速报"
+
+      - name: "Bloomberg Technology"
+        url: "https://feeds.bloomberg.com/technology/news.rss"
+        priority: 2
+        enabled: true
+        note: "大厂/AI/芯片财经视角"
+
+      - name: "Semafor Tech"
+        url: "https://www.semafor.com/rss"
+        priority: 3
+        enabled: false
+        note: "新兴科技媒体，备用"
+
+      - name: "The Information"
+        url: "https://www.theinformation.com/feed"
+        priority: 3
+        enabled: false
+        note: "付费墙，RSS有限，备用"
+
+  # ──────────────────────────────────────────
+  # 四、加密货币 & 区块链  15%
+  # ──────────────────────────────────────────
+  crypto:
+    label: "加密货币 & 区块链"
+    weight: 0.15
+    max_items: 4
+    sources:
+
+      - name: "CoinDesk"
+        url: "https://www.coindesk.com/arc/outboundfeeds/rss/"
+        priority: 1
+        enabled: true
+        note: "行业事实主力"
+
+      - name: "The Block"
+        url: "https://www.theblock.co/rss.xml"
+        priority: 1
+        enabled: true
+        note: "数据驱动，与CoinDesk互补"
+
+      - name: "Bloomberg Crypto"
+        url: "https://feeds.bloomberg.com/crypto/news.rss"
+        priority: 1
+        enabled: true
+        note: "主流财经视角做背景底色"
+
+      - name: "Financial Times Crypto"
+        url: "https://www.ft.com/cryptofinance?format=rss"
+        priority: 2
+        enabled: true
+        note: "监管/政策背景"
+
+      - name: "Cointelegraph"
+        url: "https://cointelegraph.com/rss"
+        priority: 2
+        enabled: true
+        note: "补充来源，不作为主力"
+
+      - name: "Decrypt"
+        url: "https://decrypt.co/feed"
+        priority: 3
+        enabled: false
+        note: "Web3/NFT深度，按需开启"
+
+      - name: "Blockworks"
+        url: "https://blockworks.co/feed"
+        priority: 3
+        enabled: false
+        note: "机构投资视角，备用"
+
+      - name: "DL News"
+        url: "https://www.dlnews.com/rss.xml"
+        priority: 3
+        enabled: false
+        note: "DeFi专项，按需开启"
