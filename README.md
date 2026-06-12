@@ -45,7 +45,20 @@ source .venv/bin/activate
 
 # 运行每日简报
 python agents/news_briefing/agent.py
+
+# dry-run 验证，不写入 logs/
+python agents/news_briefing/agent.py --dry-run
 ```
+
+## 每日自动运行
+
+macOS 默认使用 `launchd` 定时运行：
+
+```bash
+scripts/install_daily_briefing_launchd.sh
+```
+
+详见 `docs/SCHEDULING.md`。
 
 ## 环境变量
 
@@ -61,6 +74,7 @@ python agents/news_briefing/agent.py
 ## 关键文档
 
 - `DECISIONS.md`：长期设计决策
+- `docs/SCHEDULING.md`：每日自动运行、launchd 安装与排查
 - `docs/MODEL_POLICY.md`：本地+云端混合模型策略与执行顺序
 - `docs/LOCAL_MODEL_EVALUATION.md`：本地模型盘点、候选方向和基准测试计划
 - `docs/2026-06-07-ai-infra-audit.md`：本次审核结论与后续路线

@@ -11,7 +11,7 @@
 - [x] 模型角色配置化（fast / general / reasoner / coder / embedding）
 - [x] 新闻去重（同一事件多源报道合并）
 - [x] 来源健康记录（成功、超时、403、解析失败）
-- [ ] APScheduler 或 launchd 每日定时运行（早上 7:00 BJT）
+- [x] APScheduler 或 launchd 每日定时运行（早上 7:00 BJT）
 - [ ] 简报发送到指定位置（邮件 / 文件夹）
 
 ## Phase 1 基础设施收口

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.junxia.ai-infra.news-briefing</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/junxia/codex-projects/projects/ai-infra/scripts/run_news_briefing.sh</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/junxia/codex-projects/projects/ai-infra</string>
+
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>7</integer>
+    <key>Minute</key>
+    <integer>0</integer>
+  </dict>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>OLLAMA_MAX_LOADED_MODELS</key>
+    <string>1</string>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>/Users/junxia/codex-projects/projects/ai-infra/logs/launchd-news-briefing.out.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/junxia/codex-projects/projects/ai-infra/logs/launchd-news-briefing.err.log</string>
+
+  <key>RunAtLoad</key>
+  <false/>
+</dict>
+</plist>
