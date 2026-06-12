@@ -1,0 +1,28 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+.python-version
+
+# Virtual environments
+.venv/
+venv/
+
+# Local configuration
+.env
+.env.*
+
+# Runtime outputs
+logs/
+
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local Codex/session state
+.codex/

@@ -5,19 +5,20 @@
 
 briefing:
   title: "每日简报"
-  max_items_per_category: 8      # 每类别最多抓取条目数
+  total_items: 20
+  rss_timeout_seconds: 8
   summary_length: 150            # 每条摘要字数上限（中文）
   output_language: "zh"          # 简报输出语言
 
 categories:
 
   # ──────────────────────────────────────────
-  # 一、政治 & 突发事件  30%
+  # 一、政治 & 突发事件
   # ──────────────────────────────────────────
   politics:
     label: "政治 & 突发事件"
     weight: 0.30
-    max_items: 8
+    max_items: 20
     sources:
 
       - name: "Reuters World"
@@ -69,12 +70,12 @@ categories:
         note: "美国国会动态，备用"
 
   # ──────────────────────────────────────────
-  # 二、财经  30%
+  # 二、财经
   # ──────────────────────────────────────────
   finance:
     label: "财经"
     weight: 0.30
-    max_items: 8
+    max_items: 20
     sources:
 
       - name: "Bloomberg Markets"
@@ -132,12 +133,12 @@ categories:
         note: "美国市场速报，备用"
 
   # ──────────────────────────────────────────
-  # 三、科技  25%
+  # 三、科技
   # ──────────────────────────────────────────
   tech:
     label: "科技"
     weight: 0.25
-    max_items: 6
+    max_items: 20
     sources:
 
       - name: "TechCrunch"
@@ -195,12 +196,12 @@ categories:
         note: "付费墙，RSS有限，备用"
 
   # ──────────────────────────────────────────
-  # 四、加密货币 & 区块链  15%
+  # 四、加密货币 & 区块链
   # ──────────────────────────────────────────
   crypto:
     label: "加密货币 & 区块链"
     weight: 0.15
-    max_items: 4
+    max_items: 20
     sources:
 
       - name: "CoinDesk"

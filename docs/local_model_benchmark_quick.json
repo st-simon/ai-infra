@@ -1,0 +1,21 @@
+{
+  "generated_at": "2026-06-10T01:01:55",
+  "tasks": [
+    "news_title_translation",
+    "news_summary"
+  ],
+  "models": {
+    "qwen2.5-coder:7b": {
+      "news_title_translation": {
+        "seconds": 3.53,
+        "chars": 18,
+        "output": "美联储发出谨慎信号，市场等待通胀数据"
+      },
+      "news_summary": {
+        "seconds": 2.19,
+        "chars": 50,
+        "output": "英国监管机构提议允许互惠基金对加密ETN（交易所交易票据）的敞口限制在10%，同时增加风险控制措施。"
+      }
+    }
+  }
+}

@@ -1,0 +1,25 @@
+default_mode: local_only
+
+modes:
+  local_only:
+    provider: local
+  low_cost:
+    provider: local
+  auto:
+    provider: local
+  quality:
+    provider: local
+
+roles:
+  fast:
+    local: qwen35-fast
+  general:
+    local: qwen35-fast
+  generalist:
+    local: qwen35-fast
+  reasoner:
+    local: qwen35-fast
+  coder:
+    local: qwen2.5-coder:7b
+  embedding:
+    local: ""

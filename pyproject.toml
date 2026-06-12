@@ -1,0 +1,20 @@
+[project]
+name = "ai-infra"
+version = "0.1.0"
+description = "Local-first personal AI infrastructure with optional cloud model paths."
+requires-python = ">=3.13"
+dependencies = [
+    "apscheduler>=3.10",
+    "feedparser>=6.0",
+    "httpx[socks]>=0.27",
+    "langgraph>=0.2",
+    "python-dotenv>=1.0",
+    "pyyaml>=6.0",
+]
+
+[tool.ruff]
+line-length = 100
+
+[tool.setuptools.packages.find]
+include = ["agents*", "shared*"]
+exclude = ["logs*", "config*", "memory*", "skills*"]
