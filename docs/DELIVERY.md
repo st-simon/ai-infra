@@ -1,6 +1,6 @@
 # News Briefing Delivery
 
-Date: 2026-06-12
+Date: 2026-06-13
 Scope: delivery path for `agents/news_briefing/agent.py`
 
 ## Decision
@@ -11,12 +11,14 @@ Delivery progresses in four steps:
 
 1. Keep the existing Markdown briefing output.
 2. Generate local email-ready drafts from the Markdown briefing.
-3. When a Gmail connector is available in this runtime, create Gmail drafts first.
+3. Generate a Gmail draft request file for Codex/Gmail MCP to consume.
 4. Enable automatic sending only after draft mode is verified and recipient policy is explicit.
 
 ## Current Status
 
-Current implementation stops at local draft generation.
+Current implementation supports Gmail draft handoff. The local Python process
+writes a draft request under `logs/`, and Codex uses the Gmail MCP connector to
+create the Gmail draft.
 
 Each real run writes:
 
@@ -25,6 +27,7 @@ logs/*_briefing.md
 logs/source_health/*_source_health.jsonl
 logs/email_drafts/*_briefing_email.html
 logs/email_drafts/*_briefing_email.eml
+logs/gmail_draft_requests/*_gmail_draft_request.json
 ```
 
 `--dry-run` does not write any of these files.
@@ -40,15 +43,36 @@ config/delivery.yaml
 Defaults:
 
 - `email.enabled: true`
-- `email.mode: local_draft`
-- `email.gmail_draft_enabled: false`
+- `email.mode: gmail_draft`
+- `email.to_env: AI_INFRA_BRIEFING_TO`
+- `email.gmail_draft_enabled: true`
 - `email.auto_send_enabled: false`
 
-Leave Gmail draft and auto-send disabled until the Gmail MCP connector is available in the runtime that executes this project.
+Keep `email.auto_send_enabled: false` unless the user separately approves
+automatic sending.
+
+Set the recipient locally, not in committed config:
+
+```bash
+AI_INFRA_BRIEFING_TO=your-address@example.com
+```
+
+`scripts/run_news_briefing.sh` loads `.env` before running the agent, so launchd
+can use this value without committing the address.
 
 ## Gmail Boundary
 
-Gmail is a reasonable eventual delivery channel for this public-news briefing, but it should start as draft-only.
+Gmail is a reasonable delivery channel for this public-news briefing, but it
+starts as draft-only.
+
+The Gmail MCP connector has been verified for:
+
+- reading labels
+- reading drafts
+- creating a test draft
+
+The project still treats Gmail as a handoff boundary: the request JSON is the
+local artifact; the connector creates the actual Gmail draft.
 
 Do not auto-send until these are explicit:
 
@@ -58,4 +82,4 @@ Do not auto-send until these are explicit:
 - duplicate-send behavior
 - failure and retry behavior
 
-At the time this document was written, this Codex session did not expose a Gmail MCP connector. Project docs note that Gmail/Calendar were connected in Claude.ai, which is a separate runtime.
+Keep Gmail account-specific authorization outside this repository.

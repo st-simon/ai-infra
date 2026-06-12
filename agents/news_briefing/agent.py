@@ -529,5 +529,16 @@ if __name__ == "__main__":
         if delivery.get("mode") == "local_draft":
             print(f"邮件 HTML 草稿已保存：{delivery['html_path']}")
             print(f"邮件 EML 草稿已保存：{delivery['eml_path']}")
+        elif delivery.get("mode") == "gmail_draft_request":
+            local_draft = delivery["local_draft"]
+            print(f"Gmail 草稿请求已保存：{delivery['request_path']}")
+            print(f"Gmail 草稿收件人：{delivery['to']}")
+            print(f"邮件 HTML 备份已保存：{local_draft['html_path']}")
+            print(f"邮件 EML 备份已保存：{local_draft['eml_path']}")
+        elif delivery.get("mode") == "gmail_draft_skipped":
+            local_draft = delivery["local_draft"]
+            print(f"Gmail 草稿请求未生成：{delivery['message']}")
+            print(f"邮件 HTML 草稿已保存：{local_draft['html_path']}")
+            print(f"邮件 EML 草稿已保存：{local_draft['eml_path']}")
         elif delivery.get("mode") == "disabled":
             print("邮件草稿生成已禁用")

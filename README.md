@@ -62,14 +62,15 @@ scripts/install_daily_briefing_launchd.sh
 
 ## 简报发送
 
-正式运行会保留 Markdown 简报，并生成本地邮件草稿：
+正式运行会保留 Markdown 简报，生成本地邮件草稿备份，并准备 Gmail 草稿请求：
 
 ```bash
 logs/email_drafts/*_briefing_email.html
 logs/email_drafts/*_briefing_email.eml
+logs/gmail_draft_requests/*_gmail_draft_request.json
 ```
 
-Gmail 发送先保持关闭；详见 `docs/DELIVERY.md`。
+Gmail 草稿由 Codex 的 Gmail MCP 连接器创建；自动发送保持关闭。收件人通过本机 `.env` 的 `AI_INFRA_BRIEFING_TO` 配置，详见 `docs/DELIVERY.md`。
 
 ## 环境变量
 

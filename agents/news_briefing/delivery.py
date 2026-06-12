@@ -1,13 +1,13 @@
 """Email draft generation for the news briefing agent.
 
-This module intentionally stops at local draft files. Gmail integration should
-create drafts first, then only later enable automatic sending after permissions
-and recipient policy are explicit.
+Gmail delivery is draft-only. Local runs prepare a Gmail draft request file that
+Codex can hand to the Gmail MCP connector; OAuth tokens never live in this repo.
 """
 
 from __future__ import annotations
 
 import html
+import json
 import os
 import re
 from datetime import datetime, timezone, timedelta
@@ -34,6 +34,18 @@ def briefing_subject(markdown: str, prefix: str = "每日简报") -> str:
         return first_line
     date_str = datetime.now(timezone(timedelta(hours=8))).strftime("%Y-%m-%d")
     return f"{prefix} {date_str}"
+
+
+def resolve_recipient(email_conf: dict) -> str:
+    direct = str(email_conf.get("to", "") or "").strip()
+    if direct:
+        return direct
+
+    env_name = str(email_conf.get("to_env", "") or "").strip()
+    if env_name:
+        return os.getenv(env_name, "").strip()
+
+    return ""
 
 
 def markdown_to_email_html(markdown: str) -> str:
@@ -105,7 +117,7 @@ def write_local_email_draft(markdown: str, config: dict, generated_at: datetime 
     msg = EmailMessage()
     msg["Subject"] = subject
     msg["From"] = email_conf.get("from", "")
-    msg["To"] = email_conf.get("to", "")
+    msg["To"] = resolve_recipient(email_conf)
     msg["Date"] = formatdate(localtime=True)
     msg.set_content(markdown)
     msg.add_alternative(html_body, subtype="html")
@@ -122,7 +134,46 @@ def write_local_email_draft(markdown: str, config: dict, generated_at: datetime 
 
 
 def create_gmail_draft(markdown: str, config: dict) -> dict:
-    raise NotImplementedError("Gmail draft creation requires a Gmail MCP connector that is not available in this Codex session.")
+    email_conf = config.get("email", {})
+    generated_at = datetime.now(timezone(timedelta(hours=8)))
+    local_draft = write_local_email_draft(markdown, config, generated_at=generated_at)
+    recipient = resolve_recipient(email_conf)
+    if not recipient:
+        return {
+            "mode": "gmail_draft_skipped",
+            "reason": "missing_recipient",
+            "message": "Set email.to or the configured email.to_env value before creating Gmail drafts.",
+            "local_draft": local_draft,
+        }
+
+    request_dir = PROJECT_ROOT / email_conf.get("gmail_request_dir", "logs/gmail_draft_requests")
+    request_dir.mkdir(parents=True, exist_ok=True)
+
+    subject = local_draft["subject"]
+    html_body = markdown_to_email_html(markdown)
+    payload = {
+        "mode": "gmail_draft",
+        "provider": "gmail_mcp",
+        "created_at": generated_at.isoformat(timespec="seconds"),
+        "to": recipient,
+        "subject": subject,
+        "body": markdown,
+        "html_body": html_body,
+        "content_type": "text/markdown",
+        "auto_send_enabled": False,
+    }
+
+    stem = generated_at.strftime("%Y%m%d_%H%M") + "_gmail_draft_request"
+    request_path = request_dir / f"{stem}.json"
+    request_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    return {
+        "mode": "gmail_draft_request",
+        "subject": subject,
+        "to": recipient,
+        "request_path": str(request_path),
+        "local_draft": local_draft,
+    }
 
 
 def deliver_briefing(markdown: str, config: dict | None = None) -> dict:

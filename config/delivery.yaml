@@ -1,9 +1,11 @@
 email:
   enabled: true
-  mode: local_draft
+  mode: gmail_draft
   subject_prefix: "每日简报"
   from: ""
   to: ""
+  to_env: "AI_INFRA_BRIEFING_TO"
   local_draft_dir: "logs/email_drafts"
-  gmail_draft_enabled: false
+  gmail_request_dir: "logs/gmail_draft_requests"
+  gmail_draft_enabled: true
   auto_send_enabled: false

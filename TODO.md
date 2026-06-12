@@ -13,7 +13,8 @@
 - [x] 来源健康记录（成功、超时、403、解析失败）
 - [x] APScheduler 或 launchd 每日定时运行（早上 7:00 BJT）
 - [x] 简报发送到指定位置（本地邮件草稿 HTML / EML）
-- [ ] Gmail MCP 可用后创建 Gmail 草稿
+- [x] Gmail MCP 可用后创建 Gmail 草稿
+- [x] 正式运行生成 Gmail 草稿请求（Codex/Gmail MCP draft-only handoff）
 - [ ] 草稿模式验证后再决定是否每日自动发送
 
 ## Phase 1 基础设施收口
@@ -38,7 +39,7 @@
 ## Phase 2：工具 Agent 🔲
 
 - [ ] LangGraph 图骨架
-- [ ] 接入 Gmail MCP（邮件读取、草稿）
+- [x] 接入 Gmail MCP（邮件读取、草稿）
 - [ ] 接入 Google Calendar MCP（日程查询、创建）
 - [ ] 自然语言日程管理（"下周三下午安排客户拜访"）
 - [ ] 任务清单管理
