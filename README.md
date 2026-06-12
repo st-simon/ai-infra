@@ -60,6 +60,17 @@ scripts/install_daily_briefing_launchd.sh
 
 详见 `docs/SCHEDULING.md`。
 
+## 简报发送
+
+正式运行会保留 Markdown 简报，并生成本地邮件草稿：
+
+```bash
+logs/email_drafts/*_briefing_email.html
+logs/email_drafts/*_briefing_email.eml
+```
+
+Gmail 发送先保持关闭；详见 `docs/DELIVERY.md`。
+
 ## 环境变量
 
 见 `.env` 文件（不纳入版本控制）。
@@ -75,6 +86,7 @@ scripts/install_daily_briefing_launchd.sh
 
 - `DECISIONS.md`：长期设计决策
 - `docs/SCHEDULING.md`：每日自动运行、launchd 安装与排查
+- `docs/DELIVERY.md`：邮件草稿、Gmail 草稿边界和自动发送策略
 - `docs/MODEL_POLICY.md`：本地+云端混合模型策略与执行顺序
 - `docs/LOCAL_MODEL_EVALUATION.md`：本地模型盘点、候选方向和基准测试计划
 - `docs/2026-06-07-ai-infra-audit.md`：本次审核结论与后续路线

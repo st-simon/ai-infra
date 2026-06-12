@@ -1,11 +1,11 @@
 """
-新闻简报 Agent — Phase 1
-LangGraph 线性流水线：加载配置 → 抓取 RSS → 过滤 → AI翻译 → 生成简报
+新闻简报 Agent — Phase 1 v2
+LangGraph 线性流水线：加载配置 → 抓取 RSS → 过滤 → 批量摘要 → 生成简报
 
 核心设计决策：
 - RSS 抓取用 httpx（trust_env=True，走 VPN 代理）
-- 翻译用 coder 模型（qwen2.5-coder:7b），无 thinking 模式，输出干净
-- 简报保存到 logs/ 目录
+- 摘要用 coder 模型角色，无 thinking 模式，输出干净
+- 简报保存到 logs/ 目录，邮件草稿保存到 logs/email_drafts/
 
 	用法:
 	    cd ~/codex-projects/projects/ai-infra
@@ -27,6 +27,7 @@ import yaml
 from datetime import datetime, timezone, timedelta
 from typing import TypedDict
 from langgraph.graph import StateGraph, START, END
+from agents.news_briefing.delivery import deliver_briefing
 from shared.models import chat
 
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), '../../config/news_sources.yaml')
@@ -512,7 +513,7 @@ if __name__ == "__main__":
     print("=" * 50)
 
     if args.dry_run:
-        print("\nDry run: 未写入简报文件或来源健康记录")
+        print("\nDry run: 未写入简报文件、来源健康记录或邮件草稿")
     else:
         log_dir = os.path.join(os.path.dirname(__file__), '../../logs')
         os.makedirs(log_dir, exist_ok=True)
@@ -524,3 +525,9 @@ if __name__ == "__main__":
         health_dir = os.path.join(log_dir, "source_health")
         health_path = _write_source_health(source_health, health_dir)
         print(f"来源健康记录已保存：{health_path}")
+        delivery = deliver_briefing(briefing)
+        if delivery.get("mode") == "local_draft":
+            print(f"邮件 HTML 草稿已保存：{delivery['html_path']}")
+            print(f"邮件 EML 草稿已保存：{delivery['eml_path']}")
+        elif delivery.get("mode") == "disabled":
+            print("邮件草稿生成已禁用")

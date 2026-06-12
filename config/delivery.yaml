@@ -1,0 +1,9 @@
+email:
+  enabled: true
+  mode: local_draft
+  subject_prefix: "每日简报"
+  from: ""
+  to: ""
+  local_draft_dir: "logs/email_drafts"
+  gmail_draft_enabled: false
+  auto_send_enabled: false

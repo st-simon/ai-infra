@@ -7,7 +7,7 @@
 ## Agent 1：新闻简报 (news_briefing) 当前第一目标
 
 **文件：** `agents/news_briefing/agent.py`
-**状态：** Phase 1 v2 已实现基础收口；继续补发送目标
+**状态：** Phase 1 v2 已实现基础收口；本地邮件草稿已接入，Gmail 草稿待连接器可用
 **触发方式：** 手动 / macOS launchd 每日 07:00 / 前台 APScheduler 备用
 
 ### 职责
@@ -33,12 +33,13 @@ load_config → fetch_rss → filter_items → summarize → generate_briefing
 - 新闻来源在 `config/news_sources.yaml` 配置，`enabled: false` 即可关闭
 - 新闻 v2 已实现 30/30/25/15 配额、基础去重、多源轮转、按类别批量摘要、来源健康记录和 `--dry-run`
 - 每日自动运行优先使用 `docs/SCHEDULING.md` 中的 launchd 方案；`scheduler.py` 保留为前台备用
+- 正式运行会生成本地邮件草稿 HTML/EML；Gmail 草稿和自动发送默认关闭，见 `docs/DELIVERY.md`
 
 ### 已知问题 / TODO
 - Reuters/AP/BBC RSS 在当前网络环境下连接失败（ConnectError），已有足够替代来源
 - Caixin Global 返回 403，暂时禁用
 - 完整多模型 benchmark 尚未跑完；当前仅有 `qwen2.5-coder:7b` quick baseline
-- 后续明确简报发送目标（邮件 / 文件夹 / 其他）
+- 后续在 Gmail MCP 可用后先创建 Gmail 草稿；自动发送需另行确认
 
 ---
 
