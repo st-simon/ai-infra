@@ -18,6 +18,7 @@ import json
 import re
 import sys
 import os
+import time
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 import feedparser
@@ -37,6 +38,7 @@ class BriefingState(TypedDict):
     raw_items: list[dict]
     filtered_items: list[dict]
     summaries: dict
+    source_health: list[dict]
     briefing: str
 
 
@@ -117,6 +119,49 @@ def _fallback_summary(item: dict) -> dict:
     }
 
 
+def _health_record(
+    category: str,
+    source: dict,
+    status: str,
+    *,
+    item_count: int = 0,
+    status_code: int | None = None,
+    error_type: str = "",
+    error_message: str = "",
+    elapsed_seconds: float = 0.0,
+) -> dict:
+    return {
+        "category": category,
+        "source": source.get("name", ""),
+        "url": source.get("url", ""),
+        "status": status,
+        "status_code": status_code,
+        "item_count": item_count,
+        "error_type": error_type,
+        "error_message": error_message[:200],
+        "elapsed_seconds": round(elapsed_seconds, 2),
+    }
+
+
+def _source_health_summary(records: list[dict]) -> str:
+    counts: dict[str, int] = {}
+    for record in records:
+        counts[record["status"]] = counts.get(record["status"], 0) + 1
+    return ", ".join(f"{status}={count}" for status, count in sorted(counts.items()))
+
+
+def _write_source_health(records: list[dict], out_dir: str) -> str:
+    os.makedirs(out_dir, exist_ok=True)
+    filename = datetime.now().strftime("%Y%m%d_%H%M") + "_source_health.jsonl"
+    out_path = os.path.join(out_dir, filename)
+    generated_at = datetime.now(timezone(timedelta(hours=8))).isoformat(timespec="seconds")
+    with open(out_path, "w", encoding="utf-8") as f:
+        for record in records:
+            row = {"generated_at": generated_at, **record}
+            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+    return out_path
+
+
 def _summarize_category(cat_conf: dict, cat_items: list[dict]) -> list[dict]:
     payload = []
     for idx, item in enumerate(cat_items, 1):
@@ -180,11 +225,13 @@ def node_fetch_rss(state: BriefingState) -> dict:
     }
 
     all_items = []
+    source_health = []
     for cat_key, cat_conf in categories.items():
         sources = cat_conf.get("sources", [])
         enabled = [s for s in sources if s.get("enabled", True)]
 
         for source in enabled:
+            started = time.perf_counter()
             try:
                 # trust_env=True：走系统 VPN 代理
                 resp = httpx.get(
@@ -220,13 +267,70 @@ def node_fetch_rss(state: BriefingState) -> dict:
                     count += 1
                 if count > 0:
                     print(f"       ✓ {source['name']}: {count} 条")
+                    source_health.append(_health_record(
+                        cat_key,
+                        source,
+                        "success",
+                        item_count=count,
+                        status_code=resp.status_code,
+                        elapsed_seconds=time.perf_counter() - started,
+                    ))
                 else:
                     print(f"       - {source['name']}: 0 条")
+                    source_health.append(_health_record(
+                        cat_key,
+                        source,
+                        "empty",
+                        item_count=0,
+                        status_code=resp.status_code,
+                        elapsed_seconds=time.perf_counter() - started,
+                    ))
+            except httpx.HTTPStatusError as e:
+                status_code = e.response.status_code if e.response else None
+                print(f"       ✗ {source['name']}: HTTPStatusError")
+                source_health.append(_health_record(
+                    cat_key,
+                    source,
+                    "http_error",
+                    status_code=status_code,
+                    error_type=type(e).__name__,
+                    error_message=str(e),
+                    elapsed_seconds=time.perf_counter() - started,
+                ))
+            except httpx.TimeoutException as e:
+                print(f"       ✗ {source['name']}: {type(e).__name__}")
+                source_health.append(_health_record(
+                    cat_key,
+                    source,
+                    "timeout",
+                    error_type=type(e).__name__,
+                    error_message=str(e),
+                    elapsed_seconds=time.perf_counter() - started,
+                ))
+            except httpx.ConnectError as e:
+                print(f"       ✗ {source['name']}: ConnectError")
+                source_health.append(_health_record(
+                    cat_key,
+                    source,
+                    "connect_error",
+                    error_type=type(e).__name__,
+                    error_message=str(e),
+                    elapsed_seconds=time.perf_counter() - started,
+                ))
             except Exception as e:
                 print(f"       ✗ {source['name']}: {type(e).__name__}")
+                source_health.append(_health_record(
+                    cat_key,
+                    source,
+                    "error",
+                    error_type=type(e).__name__,
+                    error_message=str(e),
+                    elapsed_seconds=time.perf_counter() - started,
+                ))
 
     print(f"       共抓取 {len(all_items)} 条原始条目")
-    return {"raw_items": all_items}
+    print(f"       来源健康：{_source_health_summary(source_health)}")
+    return {"raw_items": all_items, "source_health": source_health}
 
 
 def node_filter_items(state: BriefingState) -> dict:
@@ -398,16 +502,17 @@ if __name__ == "__main__":
     graph = build_graph()
     result = graph.invoke({
         "config": {}, "raw_items": [], "filtered_items": [],
-        "summaries": {}, "briefing": "",
+        "summaries": {}, "source_health": [], "briefing": "",
     })
 
     briefing = result["briefing"]
+    source_health = result.get("source_health", [])
     print("\n" + "=" * 50)
     print(briefing)
     print("=" * 50)
 
     if args.dry_run:
-        print("\nDry run: 未写入简报文件")
+        print("\nDry run: 未写入简报文件或来源健康记录")
     else:
         log_dir = os.path.join(os.path.dirname(__file__), '../../logs')
         os.makedirs(log_dir, exist_ok=True)
@@ -416,3 +521,6 @@ if __name__ == "__main__":
         with open(out_path, 'w', encoding='utf-8') as f:
             f.write(briefing)
         print(f"\n简报已保存：{out_path}")
+        health_dir = os.path.join(log_dir, "source_health")
+        health_path = _write_source_health(source_health, health_dir)
+        print(f"来源健康记录已保存：{health_path}")

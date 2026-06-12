@@ -7,7 +7,7 @@
 ## Agent 1：新闻简报 (news_briefing) 当前第一目标
 
 **文件：** `agents/news_briefing/agent.py`
-**状态：** Phase 1 v2 已实现基础收口；继续补来源健康记录与调度产品化
+**状态：** Phase 1 v2 已实现基础收口；继续补调度产品化与发送目标
 **触发方式：** 手动 / 后续接入定时调度
 
 ### 职责
@@ -31,12 +31,11 @@ load_config → fetch_rss → filter_items → summarize → generate_briefing
 - 模型执行模式区分：`local_only` / `low_cost` / `auto` / `quality`
 - 16GB Mac 默认使用 4B-9B 本地模型；14B 只作为可选质量模式；允许云端 API 作为质量补充
 - 新闻来源在 `config/news_sources.yaml` 配置，`enabled: false` 即可关闭
-- 新闻 v2 已实现 30/30/25/15 配额、基础去重、多源轮转、按类别批量摘要和 `--dry-run`
+- 新闻 v2 已实现 30/30/25/15 配额、基础去重、多源轮转、按类别批量摘要、来源健康记录和 `--dry-run`
 
 ### 已知问题 / TODO
 - Reuters/AP/BBC RSS 在当前网络环境下连接失败（ConnectError），已有足够替代来源
 - Caixin Global 返回 403，暂时禁用
-- 来源健康尚未结构化记录（成功、超时、403、解析失败）
 - 完整多模型 benchmark 尚未跑完；当前仅有 `qwen2.5-coder:7b` quick baseline
 - 后续接入 APScheduler 或 launchd 实现每日自动运行
 
