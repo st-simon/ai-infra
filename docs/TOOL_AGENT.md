@@ -19,6 +19,8 @@ Codex MCP connectors and require explicit user confirmation.
   - `task_note`
   - `clarification_needed`
 - Build a structured action payload.
+- Extract basic Gmail `to`, `subject`, and `body` fields from labeled natural
+  language requests.
 - Run in `--dry-run` mode without writing files.
 - Persist request JSON for later MCP handoff when not in dry-run mode.
 - Validate reviewed `email_draft` JSON and prepare Gmail MCP
@@ -85,6 +87,22 @@ Expected result:
 - `dry_run` is `true`
 - `request_path` is empty
 - no Gmail or Calendar action is taken
+
+## Verified Gmail Send Flow
+
+On 2026-06-13, the Tool Agent Gmail path was verified end to end with a real
+external recipient:
+
+1. Local request JSON was generated under `logs/tool_agent_requests/`.
+2. The request was reviewed and converted to Gmail MCP `create_draft`
+   arguments.
+3. Gmail MCP created a draft.
+4. The user reviewed the draft in Gmail.
+5. After explicit confirmation, Gmail MCP sent the existing draft.
+6. The recipient confirmed receipt.
+
+This verification does not change the default safety boundary: future sends
+still require explicit user approval after draft review.
 
 ## Next Steps
 

@@ -1,6 +1,11 @@
 import unittest
 
-from agents.tool_agent.agent import HandoffValidationError, prepare_gmail_draft_handoff
+from agents.tool_agent.agent import (
+    HandoffValidationError,
+    build_action,
+    extract_email_fields,
+    prepare_gmail_draft_handoff,
+)
 
 
 def email_request(**field_overrides):
@@ -23,6 +28,44 @@ def email_request(**field_overrides):
 
 
 class GmailDraftHandoffTests(unittest.TestCase):
+    def test_extracts_chinese_email_fields(self):
+        fields = extract_email_fields(
+            "收件人：person@example.com 主题：项目更新 正文：这是今天的进展。"
+        )
+
+        self.assertEqual(fields["to"], "person@example.com")
+        self.assertEqual(fields["subject"], "项目更新")
+        self.assertEqual(fields["body"], "这是今天的进展。")
+
+    def test_extracts_english_email_fields(self):
+        fields = extract_email_fields(
+            "to: person@example.com subject: Project update body: Progress is on track."
+        )
+
+        self.assertEqual(fields["to"], "person@example.com")
+        self.assertEqual(fields["subject"], "Project update")
+        self.assertEqual(fields["body"], "Progress is on track.")
+
+    def test_email_action_uses_extracted_fields(self):
+        action = build_action(
+            "email_draft",
+            "收件人：person@example.com "
+            "主题：项目更新 "
+            "正文：这是今天的进展。",
+        )
+
+        self.assertEqual(action["fields"]["to"], "person@example.com")
+        self.assertEqual(action["fields"]["subject"], "项目更新")
+        self.assertEqual(action["fields"]["body"], "这是今天的进展。")
+
+    def test_email_action_keeps_request_when_body_missing(self):
+        request = "请草拟邮件，收件人：person@example.com 主题：项目更新"
+        action = build_action("email_draft", request)
+
+        self.assertEqual(action["fields"]["to"], "person@example.com")
+        self.assertEqual(action["fields"]["subject"], "项目更新")
+        self.assertEqual(action["fields"]["body"], request)
+
     def test_requires_reviewed_flag(self):
         with self.assertRaisesRegex(HandoffValidationError, "reviewed"):
             prepare_gmail_draft_handoff(email_request(), reviewed=False)

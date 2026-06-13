@@ -116,3 +116,19 @@ Consequences:
 - Phase 2 can progress while Phase 1 launchd delivery is still being observed.
 
 Reference: `docs/TOOL_AGENT.md`.
+
+## 2026-06-13: Tool Agent Gmail Send Requires Draft Review First
+
+Decision: allow Gmail sending only as a second step after the user has reviewed
+an MCP-created draft and explicitly confirmed sending that existing draft.
+
+Consequences:
+
+- The verified flow is local request JSON -> reviewed handoff -> Gmail draft ->
+  user review -> explicit send confirmation -> recipient receipt.
+- Real Gmail draft and send actions are performed by Codex Gmail MCP, not by the
+  local Python process.
+- Tracked project records should not include personal recipient addresses; those
+  remain in ignored local logs and Gmail itself.
+- Future Tool Agent email improvements should reduce review friction, but not
+  remove the draft-before-send boundary.

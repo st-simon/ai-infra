@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any, TypedDict
@@ -49,6 +50,38 @@ def classify_intent(text: str) -> str:
     return "clarification_needed"
 
 
+def _extract_labeled_value(text: str, labels: tuple[str, ...]) -> str:
+    label_pattern = "|".join(re.escape(label) for label in labels)
+    next_labels = (
+        "收件人",
+        "recipient",
+        "to",
+        "主题",
+        "subject",
+        "正文",
+        "body",
+        "内容",
+        "content",
+    )
+    next_pattern = "|".join(re.escape(label) for label in next_labels)
+    pattern = re.compile(
+        rf"(?:{label_pattern})\s*[：:]\s*(.*?)(?=\s*(?:{next_pattern})\s*[：:]|$)",
+        re.IGNORECASE | re.DOTALL,
+    )
+    match = pattern.search(text)
+    if not match:
+        return ""
+    return match.group(1).strip(" \n\t，,;；")
+
+
+def extract_email_fields(user_request: str) -> dict[str, str]:
+    return {
+        "to": _extract_labeled_value(user_request, ("收件人", "recipient", "to")),
+        "subject": _extract_labeled_value(user_request, ("主题", "subject")),
+        "body": _extract_labeled_value(user_request, ("正文", "body", "内容", "content")),
+    }
+
+
 def build_action(intent: str, user_request: str) -> dict:
     base = {
         "schema_version": 1,
@@ -61,14 +94,15 @@ def build_action(intent: str, user_request: str) -> dict:
     }
 
     if intent == "email_draft":
+        email_fields = extract_email_fields(user_request)
         return {
             **base,
             "connector": "gmail_mcp",
             "operation": "create_or_update_draft",
             "fields": {
-                "to": "",
-                "subject": "",
-                "body": user_request,
+                "to": email_fields["to"],
+                "subject": email_fields["subject"],
+                "body": email_fields["body"] or user_request,
             },
             "notes": "Prepare a Gmail draft only. Do not send without explicit user approval.",
         }
