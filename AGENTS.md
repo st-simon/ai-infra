@@ -47,7 +47,7 @@ load_config → fetch_rss → filter_items → summarize → generate_briefing
 ## Agent 2：工具 Agent (tool_agent)
 
 **文件：** `agents/tool_agent/agent.py`
-**状态：** Phase 2 ◐ reviewed Gmail 草稿/发送闭环已验证；Google Calendar MCP 已接入并 profile 验证；本地仍不直接执行账号动作
+**状态：** Phase 2 ◐ reviewed Gmail 草稿/发送闭环已验证；Google Calendar MCP 已接入并 profile 验证；本地 task-log 已接入；本地仍不直接执行账号动作
 **依赖：** Gmail MCP、Google Calendar MCP（Codex 中均已验证）
 
 ### 职责
@@ -60,6 +60,7 @@ load_config → fetch_rss → filter_items → summarize → generate_briefing
 - `agents/tool_agent/agent.py` 先把自然语言请求转成 `logs/tool_agent_requests/*.json`
 - email_draft 支持从带标签自然语言中抽取基础 `to` / `subject` / `body`
 - calendar_event 支持从带标签自然语言中抽取基础 `title` / `time_window` / `start_time` / `end_time` / `attendees` / `description` / `reminder_minutes`
+- task_note 支持从带标签自然语言中抽取基础 `title` / `due` / `context`，并在非 dry-run 时写入 `logs/tool_tasks/*.json`
 - reviewed `email_draft` JSON 可通过 `--gmail-draft-handoff ... --reviewed` 生成 Gmail MCP `create_draft` 参数
 - reviewed `calendar_event` JSON 可通过 `--calendar-event-handoff ... --reviewed` 生成 Google Calendar MCP `create_event` 参数；真实创建日程仍需另行确认
 - Calendar 默认按当前连接日历显示时区解释无 offset 时间；用户明确指定时区或 offset 时优先使用用户指定值

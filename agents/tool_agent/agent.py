@@ -18,6 +18,7 @@ from langgraph.graph import END, START, StateGraph
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 REQUEST_DIR = PROJECT_ROOT / "logs" / "tool_agent_requests"
+TASK_LOG_DIR = PROJECT_ROOT / "logs" / "tool_tasks"
 DEFAULT_CALENDAR_TIMEZONE = "America/New_York"
 FIELD_LABELS = (
     "收件人",
@@ -61,6 +62,16 @@ FIELD_LABELS = (
     "attendee",
     "描述",
     "description",
+    "截止",
+    "截止时间",
+    "到期",
+    "due",
+    "deadline",
+    "上下文",
+    "背景",
+    "context",
+    "状态",
+    "status",
 )
 
 
@@ -74,6 +85,7 @@ class ToolAgentState(TypedDict):
     intent: str
     action: dict
     request_path: str
+    task_path: str
 
 
 def _now_bjt() -> datetime:
@@ -86,6 +98,8 @@ def classify_intent(text: str) -> str:
     calendar_keywords = ("calendar", "meeting", "schedule", "日程", "会议", "拜访", "安排")
     task_keywords = ("todo", "task", "remind", "提醒", "待办", "任务", "跟进")
 
+    if re.search(r"(任务|待办|todo|task)\s*[：:]", text, flags=re.IGNORECASE):
+        return "task_note"
     if any(keyword in lowered for keyword in email_keywords):
         return "email_draft"
     if any(keyword in lowered for keyword in calendar_keywords):
@@ -176,6 +190,20 @@ def extract_calendar_fields(user_request: str) -> dict[str, Any]:
     }
 
 
+def extract_task_fields(user_request: str) -> dict[str, str]:
+    return {
+        "title": _extract_labeled_value(user_request, ("标题", "title", "任务", "task")),
+        "due": _extract_labeled_value(
+            user_request,
+            ("截止时间", "截止", "到期", "due", "deadline"),
+        ),
+        "context": _extract_labeled_value(
+            user_request,
+            ("上下文", "背景", "context", "描述", "description", "内容", "content"),
+        ),
+    }
+
+
 def build_action(intent: str, user_request: str) -> dict:
     base = {
         "schema_version": 1,
@@ -224,16 +252,18 @@ def build_action(intent: str, user_request: str) -> dict:
             ),
         }
     if intent == "task_note":
+        task_fields = extract_task_fields(user_request)
         return {
             **base,
             "connector": "local_task_log",
             "operation": "record_task_candidate",
             "fields": {
-                "title": user_request,
-                "due": "",
-                "context": "",
+                "title": task_fields["title"] or user_request,
+                "due": task_fields["due"],
+                "context": task_fields["context"],
+                "status": "planned",
             },
-            "notes": "Record as a local task candidate until a task system is selected.",
+            "notes": "Record as a local task candidate. No external task system is used.",
         }
     return {
         **base,
@@ -256,7 +286,7 @@ def node_plan(state: ToolAgentState) -> dict:
 
 def node_persist(state: ToolAgentState) -> dict:
     if state["dry_run"]:
-        return {"request_path": ""}
+        return {"request_path": "", "task_path": ""}
 
     REQUEST_DIR.mkdir(parents=True, exist_ok=True)
     stem = _now_bjt().strftime("%Y%m%d_%H%M%S") + f"_{state['intent']}"
@@ -265,7 +295,62 @@ def node_persist(state: ToolAgentState) -> dict:
         json.dumps(state["action"], ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
-    return {"request_path": str(request_path)}
+    if state["intent"] != "task_note":
+        return {"request_path": str(request_path), "task_path": ""}
+
+    task_path = record_task_log(state["action"], request_path=request_path)
+    return {"request_path": str(request_path), "task_path": str(task_path)}
+
+
+def build_task_record(
+    action: dict[str, Any],
+    *,
+    request_path: Path | None = None,
+) -> dict[str, Any]:
+    if action.get("schema_version") != 1:
+        raise HandoffValidationError("Only schema_version=1 task actions are supported.")
+    if action.get("agent") != "tool_agent":
+        raise HandoffValidationError("Task action must come from tool_agent.")
+    if action.get("intent") != "task_note":
+        raise HandoffValidationError("Only task_note actions can be recorded as tasks.")
+    if action.get("connector") != "local_task_log":
+        raise HandoffValidationError("Task action must target local_task_log.")
+    if action.get("auto_execute") is not False:
+        raise HandoffValidationError("auto_execute must be false for local task logging.")
+
+    fields = dict(action.get("fields") or {})
+    title = _non_empty(fields.get("title"))
+    if not title:
+        raise HandoffValidationError("Task title is required.")
+
+    created_at = _now_bjt().isoformat(timespec="seconds")
+    task_id = "task_" + re.sub(r"[^0-9T]", "", created_at)
+    return {
+        "schema_version": 1,
+        "task_id": task_id,
+        "agent": "tool_agent",
+        "created_at": created_at,
+        "updated_at": created_at,
+        "status": _non_empty(fields.get("status")) or "planned",
+        "title": title,
+        "due": _non_empty(fields.get("due")),
+        "context": _non_empty(fields.get("context")),
+        "source_request_path": str(request_path) if request_path else "",
+        "user_request": _non_empty(action.get("user_request")),
+    }
+
+
+def record_task_log(
+    action: dict[str, Any],
+    *,
+    request_path: Path | None = None,
+    task_dir: Path = TASK_LOG_DIR,
+) -> Path:
+    task_dir.mkdir(parents=True, exist_ok=True)
+    record = build_task_record(action, request_path=request_path)
+    task_path = task_dir / f"{record['task_id']}.json"
+    task_path.write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8")
+    return task_path
 
 
 def load_request(path: Path) -> dict[str, Any]:
@@ -497,6 +582,7 @@ def run(user_request: str, *, dry_run: bool = False) -> ToolAgentState:
         "intent": "",
         "action": {},
         "request_path": "",
+        "task_path": "",
     })
 
 
@@ -590,6 +676,7 @@ def main() -> None:
         "intent": result["intent"],
         "dry_run": result["dry_run"],
         "request_path": result["request_path"],
+        "task_path": result["task_path"],
         "action": result["action"],
     }, ensure_ascii=False, indent=2))
 

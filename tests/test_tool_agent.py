@@ -1,12 +1,18 @@
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from agents.tool_agent.agent import (
     HandoffValidationError,
+    build_task_record,
     build_action,
+    classify_intent,
     extract_calendar_fields,
     extract_email_fields,
+    extract_task_fields,
     prepare_calendar_event_handoff,
     prepare_gmail_draft_handoff,
+    record_task_log,
 )
 
 
@@ -51,6 +57,27 @@ def calendar_request(**field_overrides):
         "operation": "create_event_draft",
         "requires_confirmation": True,
         "auto_execute": False,
+        "fields": fields,
+    }
+
+
+def task_request(**field_overrides):
+    fields = {
+        "title": "Prepare meeting notes",
+        "due": "2026-06-20",
+        "context": "AI application seminar preparation.",
+        "status": "planned",
+    }
+    fields.update(field_overrides)
+    return {
+        "schema_version": 1,
+        "agent": "tool_agent",
+        "intent": "task_note",
+        "connector": "local_task_log",
+        "operation": "record_task_candidate",
+        "requires_confirmation": True,
+        "auto_execute": False,
+        "user_request": "Please track this task.",
         "fields": fields,
     }
 
@@ -220,6 +247,54 @@ class CalendarEventHandoffTests(unittest.TestCase):
         self.assertEqual(result["arguments"]["start_time"], "2026-06-25T10:00:00-04:00")
         self.assertEqual(result["arguments"]["end_time"], "2026-06-25T12:00:00-04:00")
         self.assertEqual(result["arguments"]["timezone_str"], "America/New_York")
+
+
+class LocalTaskLogTests(unittest.TestCase):
+    def test_labeled_task_wins_over_calendar_keywords(self):
+        intent = classify_intent("任务：准备会议讲稿 截止：2026-06-20")
+
+        self.assertEqual(intent, "task_note")
+
+    def test_extracts_task_fields(self):
+        fields = extract_task_fields(
+            "任务：准备会议讲稿 截止：2026-06-20 上下文：AI应用研讨会。"
+        )
+
+        self.assertEqual(fields["title"], "准备会议讲稿")
+        self.assertEqual(fields["due"], "2026-06-20")
+        self.assertEqual(fields["context"], "AI应用研讨会。")
+
+    def test_task_action_uses_extracted_fields(self):
+        action = build_action(
+            "task_note",
+            "任务：准备会议讲稿 截止：2026-06-20 上下文：AI应用研讨会。",
+        )
+
+        self.assertEqual(action["connector"], "local_task_log")
+        self.assertEqual(action["fields"]["title"], "准备会议讲稿")
+        self.assertEqual(action["fields"]["due"], "2026-06-20")
+        self.assertEqual(action["fields"]["context"], "AI应用研讨会。")
+        self.assertEqual(action["fields"]["status"], "planned")
+
+    def test_build_task_record_rejects_non_task_action(self):
+        action = task_request()
+        action["intent"] = "email_draft"
+
+        with self.assertRaisesRegex(HandoffValidationError, "task_note"):
+            build_task_record(action)
+
+    def test_record_task_log_writes_local_json(self):
+        with TemporaryDirectory() as tmpdir:
+            task_path = record_task_log(
+                task_request(),
+                request_path=Path("logs/tool_agent_requests/example.json"),
+                task_dir=Path(tmpdir),
+            )
+
+            self.assertTrue(task_path.exists())
+            record = task_path.read_text(encoding="utf-8")
+            self.assertIn("Prepare meeting notes", record)
+            self.assertIn("logs/tool_agent_requests/example.json", record)
 
 
 if __name__ == "__main__":

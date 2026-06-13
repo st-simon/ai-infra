@@ -24,8 +24,12 @@ Codex MCP connectors and require explicit user confirmation.
 - Extract basic Calendar `title`, `time_window`, `attendees`, and `description`
   fields from labeled natural language requests, plus optional
   `reminder_minutes`.
+- Extract basic local task `title`, `due`, and `context` fields from labeled
+  natural language requests.
 - Run in `--dry-run` mode without writing files.
 - Persist request JSON for later MCP handoff when not in dry-run mode.
+- Persist local `task_note` records under `logs/tool_tasks/` when not in
+  dry-run mode.
 - Validate reviewed `email_draft` JSON and prepare Gmail MCP
   `create_draft` arguments.
 - Validate reviewed `calendar_event` JSON and prepare Google Calendar MCP
@@ -154,9 +158,35 @@ Timezone policy: use the connected Google Calendar display timezone by default;
 only override it when the user explicitly names another timezone such as
 `Asia/Shanghai` or provides datetimes with explicit offsets.
 
+## Local Task Log
+
+Task requests stay local until a real task system is selected. A non-dry-run
+`task_note` writes two local artifacts:
+
+- `logs/tool_agent_requests/<timestamp>_task_note.json`
+- `logs/tool_tasks/task_<timestamp>.json`
+
+Task records include:
+
+- `task_id`
+- `status`, initially `planned`
+- `title`
+- `due`
+- `context`
+- `source_request_path`
+
+Example:
+
+```bash
+.venv/bin/python agents/tool_agent/agent.py \
+  "任务：准备会议讲稿 截止：2026-06-20 上下文：AI应用研讨会"
+```
+
+No Gmail, Calendar, or external task-system action is taken.
+
 ## Next Steps
 
 - Exercise the Calendar path with a real reviewed event, first by creating a
   draft-equivalent request JSON and then by explicitly approving MCP event
   creation.
-- Add a local task-log target before selecting a real task system.
+- Add task status updates and list/search commands for local task records.

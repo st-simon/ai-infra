@@ -175,3 +175,17 @@ Consequences:
   calendar timezone before MCP handoff.
 - Explicit timezones such as `Asia/Shanghai` or explicit offsets such as
   `+08:00` remain user intent and are not overridden.
+
+## 2026-06-13: Phase 2B Starts With Local Task Log
+
+Decision: implement Tool Agent task management as a local task log before
+selecting or connecting an external task system.
+
+Consequences:
+
+- `task_note` actions extract `title`, `due`, and `context` from labeled natural
+  language.
+- Non-dry-run task requests write both the original request JSON under
+  `logs/tool_agent_requests/` and a task record under `logs/tool_tasks/`.
+- Task records start with `status=planned`; status update, list, and search
+  commands are future Phase 2B follow-ups.
