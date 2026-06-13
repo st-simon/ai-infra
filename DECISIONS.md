@@ -108,6 +108,9 @@ Consequences:
 
 - `agents/tool_agent/agent.py` classifies natural-language requests and writes
   structured handoff JSON under `logs/tool_agent_requests/`.
+- Reviewed `email_draft` request JSON can be validated with
+  `--gmail-draft-handoff ... --reviewed` to produce Gmail MCP `create_draft`
+  arguments; it never sends email.
 - Gmail and Calendar execution happens later through Codex MCP tools after user
   review.
 - Phase 2 can progress while Phase 1 launchd delivery is still being observed.

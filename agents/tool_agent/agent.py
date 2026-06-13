@@ -10,12 +10,16 @@ import argparse
 import json
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from typing import TypedDict
+from typing import Any, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 REQUEST_DIR = PROJECT_ROOT / "logs" / "tool_agent_requests"
+
+
+class HandoffValidationError(ValueError):
+    """Raised when a local request is not safe to hand to an MCP connector."""
 
 
 class ToolAgentState(TypedDict):
@@ -79,7 +83,10 @@ def build_action(intent: str, user_request: str) -> dict:
                 "attendees": [],
                 "description": user_request,
             },
-            "notes": "Prepare a calendar event draft only. Do not create it without explicit user approval.",
+            "notes": (
+                "Prepare a calendar event draft only. "
+                "Do not create it without explicit user approval."
+            ),
         }
     if intent == "task_note":
         return {
@@ -126,6 +133,98 @@ def node_persist(state: ToolAgentState) -> dict:
     return {"request_path": str(request_path)}
 
 
+def load_request(path: Path) -> dict[str, Any]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise HandoffValidationError(f"Request file does not exist: {path}") from exc
+    except json.JSONDecodeError as exc:
+        raise HandoffValidationError(f"Request file is not valid JSON: {path}") from exc
+
+    if not isinstance(payload, dict):
+        raise HandoffValidationError("Request file must contain a JSON object.")
+    return payload
+
+
+def _non_empty(value: Any) -> str:
+    return str(value or "").strip()
+
+
+def prepare_gmail_draft_handoff(
+    action: dict[str, Any],
+    *,
+    reviewed: bool,
+    source_path: Path | None = None,
+    overrides: dict[str, str | None] | None = None,
+) -> dict[str, Any]:
+    if not reviewed:
+        raise HandoffValidationError("Gmail draft handoff requires --reviewed.")
+
+    if action.get("schema_version") != 1:
+        raise HandoffValidationError("Only schema_version=1 tool-agent requests are supported.")
+    if action.get("agent") != "tool_agent":
+        raise HandoffValidationError("Request must come from tool_agent.")
+    if action.get("intent") != "email_draft":
+        raise HandoffValidationError("Only email_draft requests can create Gmail drafts.")
+    if action.get("connector") != "gmail_mcp":
+        raise HandoffValidationError("Email draft request must target gmail_mcp.")
+    if action.get("requires_confirmation") is not True:
+        raise HandoffValidationError("requires_confirmation must be true.")
+    if action.get("auto_execute") is not False:
+        raise HandoffValidationError("auto_execute must be false for Gmail draft handoff.")
+
+    operation = action.get("operation")
+    if operation not in {"create_draft", "create_or_update_draft"}:
+        raise HandoffValidationError("Unsupported Gmail draft operation.")
+
+    fields = dict(action.get("fields") or {})
+    for key, value in (overrides or {}).items():
+        if value is not None:
+            fields[key] = value
+
+    args: dict[str, Any] = {
+        "to": _non_empty(fields.get("to")),
+        "subject": _non_empty(fields.get("subject")),
+        "body": _non_empty(fields.get("body")),
+        "content_type": _non_empty(fields.get("content_type")) or "text/markdown",
+    }
+
+    for optional_key in (
+        "cc",
+        "bcc",
+        "html_body",
+        "body_file",
+        "attachment_files",
+        "reply_message_id",
+    ):
+        value = fields.get(optional_key)
+        if _non_empty(value):
+            args[optional_key] = value
+
+    missing = [key for key in ("to", "subject", "body") if not args[key]]
+    if missing:
+        raise HandoffValidationError(
+            "Missing required Gmail draft field(s): " + ", ".join(missing)
+        )
+    if args["content_type"] not in {"text/markdown", "text/html", "text/plain"}:
+        raise HandoffValidationError("Unsupported Gmail draft content_type.")
+
+    return {
+        "mode": "gmail_draft_handoff",
+        "status": "ready_for_mcp",
+        "provider": "gmail_mcp",
+        "mcp_tool": "mcp__codex_apps__gmail._create_draft",
+        "created_at": _now_bjt().isoformat(timespec="seconds"),
+        "source_request_path": str(source_path) if source_path else "",
+        "arguments": args,
+        "safety": {
+            "creates_draft_only": True,
+            "sends_email": False,
+            "requires_review": True,
+        },
+    }
+
+
 def build_graph():
     graph = StateGraph(ToolAgentState)
     graph.add_node("classify", node_classify)
@@ -152,9 +251,44 @@ def run(user_request: str, *, dry_run: bool = False) -> ToolAgentState:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Plan a tool-agent request.")
-    parser.add_argument("request", nargs="+", help="Natural language tool request.")
+    parser.add_argument("request", nargs="*", help="Natural language tool request.")
     parser.add_argument("--dry-run", action="store_true", help="Do not write request files.")
+    parser.add_argument(
+        "--gmail-draft-handoff",
+        type=Path,
+        metavar="REQUEST_JSON",
+        help="Validate a reviewed tool-agent request for Gmail draft creation.",
+    )
+    parser.add_argument(
+        "--reviewed",
+        action="store_true",
+        help="Confirm the request JSON and resulting draft fields were reviewed.",
+    )
+    parser.add_argument("--to", help="Reviewed Gmail draft recipient override.")
+    parser.add_argument("--subject", help="Reviewed Gmail draft subject override.")
+    parser.add_argument("--body", help="Reviewed Gmail draft body override.")
     args = parser.parse_args()
+
+    if args.gmail_draft_handoff:
+        try:
+            action = load_request(args.gmail_draft_handoff)
+            result = prepare_gmail_draft_handoff(
+                action,
+                reviewed=args.reviewed,
+                source_path=args.gmail_draft_handoff,
+                overrides={
+                    "to": args.to,
+                    "subject": args.subject,
+                    "body": args.body,
+                },
+            )
+        except HandoffValidationError as exc:
+            parser.error(str(exc))
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return
+
+    if not args.request:
+        parser.error("request is required unless --gmail-draft-handoff is used")
 
     result = run(" ".join(args.request), dry_run=args.dry_run)
     print(json.dumps({
