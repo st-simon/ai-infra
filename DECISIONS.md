@@ -208,3 +208,20 @@ Consequences:
   14:00-17:00, evening 19:00-21:00.
 - Ambiguous or unsupported expressions leave fields empty so reviewed handoff
   can block event creation.
+
+## 2026-06-13: Tool Agent Phase 2 MVP Closed
+
+Decision: treat Tool Agent Phase 2 as MVP-complete after verifying the real
+Calendar creation loop.
+
+Consequences:
+
+- The standardized Calendar validation path was exercised end to end:
+  local request JSON -> reviewed `--calendar-event-handoff` -> explicit user
+  approval -> Google Calendar MCP `create_event` -> read/search confirmation.
+- The validation event is `viutqoheidceh6o2a9hr4oo0qo`, titled
+  `Tool Agent Phase 2 Calendar 闭环验收会议`, scheduled for 2026-06-26
+  09:00-09:30 in `America/New_York`.
+- Phase 2 remains intentionally reviewed-by-default: local Python prepares
+  requests, while real Gmail and Calendar writes stay behind Codex MCP
+  connectors and explicit user confirmation.

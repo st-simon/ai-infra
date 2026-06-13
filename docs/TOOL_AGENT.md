@@ -1,7 +1,7 @@
 # Tool Agent
 
 Date: 2026-06-13
-Scope: Phase 2 local planner, reviewed Gmail draft handoff, and Calendar MCP handoff
+Scope: Phase 2 local planner, reviewed Gmail draft handoff, Calendar MCP handoff, and local task log
 
 ## Decision
 
@@ -36,6 +36,9 @@ Codex MCP connectors and require explicit user confirmation.
   `create_draft` arguments.
 - Validate reviewed `calendar_event` JSON and prepare Google Calendar MCP
   `create_event` arguments when exact start/end datetimes are provided.
+- Verified real Calendar creation path with explicit user approval:
+  reviewed Tool Agent request -> Google Calendar MCP `create_event` -> event
+  read/search confirmation.
 
 ## Boundary
 
@@ -237,8 +240,7 @@ Supported statuses:
 
 ## Next Steps
 
-- Exercise the Calendar path with a real reviewed event, first by creating a
-  draft-equivalent request JSON and then by explicitly approving MCP event
-  creation.
+- Treat Phase 2 as MVP-complete and collect real usage feedback before adding
+  broader parsing or automation.
 - Decide whether local tasks should stay file-based or graduate to a richer
   task store after real usage.

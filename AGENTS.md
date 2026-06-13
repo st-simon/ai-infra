@@ -47,7 +47,7 @@ load_config → fetch_rss → filter_items → summarize → generate_briefing
 ## Agent 2：工具 Agent (tool_agent)
 
 **文件：** `agents/tool_agent/agent.py`
-**状态：** Phase 2 ◐ reviewed Gmail 草稿/发送闭环已验证；Google Calendar MCP 已接入并 profile 验证；本地 task-log 已接入；本地仍不直接执行账号动作
+**状态：** Phase 2 ✅ MVP 已收口；reviewed Gmail 草稿/发送闭环已验证；reviewed Calendar 创建闭环已验证；本地 task-log 已接入；本地仍不直接执行账号动作
 **依赖：** Gmail MCP、Google Calendar MCP（Codex 中均已验证）
 
 ### 职责
@@ -64,6 +64,7 @@ load_config → fetch_rss → filter_items → summarize → generate_briefing
 - task_note 支持从带标签自然语言中抽取基础 `title` / `due` / `context`，并在非 dry-run 时写入 `logs/tool_tasks/*.json`
 - reviewed `email_draft` JSON 可通过 `--gmail-draft-handoff ... --reviewed` 生成 Gmail MCP `create_draft` 参数
 - reviewed `calendar_event` JSON 可通过 `--calendar-event-handoff ... --reviewed` 生成 Google Calendar MCP `create_event` 参数；真实创建日程仍需另行确认
+- 真实 Calendar 创建闭环已验证：reviewed Tool Agent request → MCP `create_event` → Calendar 读取/搜索验证可见
 - Calendar 默认按当前连接日历显示时区解释无 offset 时间；用户明确指定时区或 offset 时优先使用用户指定值
 - 本地任务可通过 `--list-tasks` 列表、`--task-status` 筛选、`--update-task-status ... --new-status ...` 更新状态
 - 本地任务支持 `--task-query` 文本搜索和 `--due-before` / `--due-after` 截止日期筛选

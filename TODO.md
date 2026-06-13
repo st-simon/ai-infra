@@ -38,7 +38,7 @@
 - [x] 实现 `shared/models.py` 的 role/mode 策略层：`fast` / `general` / `reasoner` / `coder` / `embedding` + `local_only` / `low_cost` / `auto` / `quality`
 - [x] 保持云端 provider / model 可配置，不在 Agent 逻辑中写死
 
-## Phase 2：工具 Agent 🔲
+## Phase 2：工具 Agent ✅
 
 - [x] LangGraph 图骨架
 - [x] 本地工具请求 JSON handoff（不直接执行 Gmail/Calendar）
@@ -50,7 +50,7 @@
 - [x] 接入 Google Calendar MCP 并完成 profile 验证
 - [x] Calendar handoff 支持事件提醒偏移（如三天前 = 4320 分钟）
 - [x] Calendar handoff 默认使用当前连接日历显示时区；显式时区优先
-- [ ] 真实 Calendar 事件创建闭环验证（reviewed request → MCP create_event）
+- [x] 真实 Calendar 事件创建闭环验证（reviewed request → MCP create_event）
 - [x] 本地 task-log：task_note 写入 `logs/tool_tasks/*.json`
 - [x] 本地任务列表和状态更新（planned / in_progress / done / blocked / canceled）
 - [x] 本地任务搜索 / 截止日期筛选
