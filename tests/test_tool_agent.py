@@ -3,7 +3,9 @@ import unittest
 from agents.tool_agent.agent import (
     HandoffValidationError,
     build_action,
+    extract_calendar_fields,
     extract_email_fields,
+    prepare_calendar_event_handoff,
     prepare_gmail_draft_handoff,
 )
 
@@ -21,6 +23,26 @@ def email_request(**field_overrides):
         "intent": "email_draft",
         "connector": "gmail_mcp",
         "operation": "create_or_update_draft",
+        "requires_confirmation": True,
+        "auto_execute": False,
+        "fields": fields,
+    }
+
+
+def calendar_request(**field_overrides):
+    fields = {
+        "title": "Customer visit",
+        "time_window": "next Wednesday afternoon",
+        "attendees": ["person@example.com"],
+        "description": "Discuss the project plan.",
+    }
+    fields.update(field_overrides)
+    return {
+        "schema_version": 1,
+        "agent": "tool_agent",
+        "intent": "calendar_event",
+        "connector": "calendar_mcp",
+        "operation": "create_event_draft",
         "requires_confirmation": True,
         "auto_execute": False,
         "fields": fields,
@@ -103,6 +125,51 @@ class GmailDraftHandoffTests(unittest.TestCase):
         self.assertEqual(result["arguments"]["subject"], "Reviewed subject")
         self.assertEqual(result["arguments"]["content_type"], "text/markdown")
         self.assertFalse(result["safety"]["sends_email"])
+
+
+class CalendarEventHandoffTests(unittest.TestCase):
+    def test_extracts_chinese_calendar_fields(self):
+        fields = extract_calendar_fields(
+            "安排会议，标题：客户拜访 时间：下周三下午 "
+            "参会人：a@example.com，b@example.com 描述：讨论方案。"
+        )
+
+        self.assertEqual(fields["title"], "客户拜访")
+        self.assertEqual(fields["time_window"], "下周三下午")
+        self.assertEqual(fields["attendees"], ["a@example.com", "b@example.com"])
+        self.assertEqual(fields["description"], "讨论方案。")
+
+    def test_calendar_action_uses_extracted_fields(self):
+        action = build_action(
+            "calendar_event",
+            "meeting title: Customer visit when: next Wednesday afternoon "
+            "attendees: a@example.com, b@example.com description: Discuss plan.",
+        )
+
+        self.assertEqual(action["fields"]["title"], "Customer visit")
+        self.assertEqual(action["fields"]["time_window"], "next Wednesday afternoon")
+        self.assertEqual(action["fields"]["attendees"], ["a@example.com", "b@example.com"])
+        self.assertEqual(action["fields"]["description"], "Discuss plan.")
+
+    def test_calendar_handoff_requires_reviewed_flag(self):
+        with self.assertRaisesRegex(HandoffValidationError, "reviewed"):
+            prepare_calendar_event_handoff(calendar_request(), reviewed=False)
+
+    def test_calendar_handoff_rejects_missing_required_fields(self):
+        with self.assertRaisesRegex(HandoffValidationError, "time_window"):
+            prepare_calendar_event_handoff(calendar_request(time_window=""), reviewed=True)
+
+    def test_calendar_handoff_validates_but_does_not_create_event(self):
+        result = prepare_calendar_event_handoff(
+            calendar_request(attendees="a@example.com; b@example.com"),
+            reviewed=True,
+        )
+
+        self.assertEqual(result["mode"], "calendar_event_handoff")
+        self.assertEqual(result["status"], "blocked_missing_connector")
+        self.assertEqual(result["arguments"]["title"], "Customer visit")
+        self.assertEqual(result["arguments"]["attendees"], ["a@example.com", "b@example.com"])
+        self.assertFalse(result["safety"]["creates_event"])
 
 
 if __name__ == "__main__":

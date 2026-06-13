@@ -132,3 +132,17 @@ Consequences:
   remain in ignored local logs and Gmail itself.
 - Future Tool Agent email improvements should reduce review friction, but not
   remove the draft-before-send boundary.
+
+## 2026-06-13: Calendar Phase 2A Is Local-Only Until MCP Exists
+
+Decision: add Calendar request shaping and reviewed handoff validation before
+real Calendar account access is available.
+
+Consequences:
+
+- `calendar_event` requests can extract `title`, `time_window`, `attendees`, and
+  `description` from labeled natural language.
+- Reviewed Calendar handoff returns `blocked_missing_connector` and
+  `safety.creates_event=false`.
+- Real event creation stays blocked until a Codex-accessible Google Calendar MCP
+  connector exists and the user separately approves creating an event.

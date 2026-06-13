@@ -17,6 +17,30 @@ from langgraph.graph import END, START, StateGraph
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 REQUEST_DIR = PROJECT_ROOT / "logs" / "tool_agent_requests"
+FIELD_LABELS = (
+    "收件人",
+    "recipient",
+    "to",
+    "主题",
+    "subject",
+    "正文",
+    "body",
+    "内容",
+    "content",
+    "标题",
+    "title",
+    "时间",
+    "时间窗口",
+    "time",
+    "time_window",
+    "when",
+    "参会人",
+    "参与人",
+    "attendees",
+    "attendee",
+    "描述",
+    "description",
+)
 
 
 class HandoffValidationError(ValueError):
@@ -52,18 +76,7 @@ def classify_intent(text: str) -> str:
 
 def _extract_labeled_value(text: str, labels: tuple[str, ...]) -> str:
     label_pattern = "|".join(re.escape(label) for label in labels)
-    next_labels = (
-        "收件人",
-        "recipient",
-        "to",
-        "主题",
-        "subject",
-        "正文",
-        "body",
-        "内容",
-        "content",
-    )
-    next_pattern = "|".join(re.escape(label) for label in next_labels)
+    next_pattern = "|".join(re.escape(label) for label in FIELD_LABELS)
     pattern = re.compile(
         rf"(?:{label_pattern})\s*[：:]\s*(.*?)(?=\s*(?:{next_pattern})\s*[：:]|$)",
         re.IGNORECASE | re.DOTALL,
@@ -79,6 +92,34 @@ def extract_email_fields(user_request: str) -> dict[str, str]:
         "to": _extract_labeled_value(user_request, ("收件人", "recipient", "to")),
         "subject": _extract_labeled_value(user_request, ("主题", "subject")),
         "body": _extract_labeled_value(user_request, ("正文", "body", "内容", "content")),
+    }
+
+
+def _split_attendees(value: Any) -> list[str]:
+    if isinstance(value, list):
+        candidates = value
+    else:
+        candidates = re.split(r"[,，;；、\n]+", str(value or ""))
+    return [str(candidate).strip() for candidate in candidates if str(candidate).strip()]
+
+
+def extract_calendar_fields(user_request: str) -> dict[str, Any]:
+    return {
+        "title": _extract_labeled_value(user_request, ("标题", "主题", "title", "subject")),
+        "time_window": _extract_labeled_value(
+            user_request,
+            ("时间窗口", "时间", "time_window", "time", "when"),
+        ),
+        "attendees": _split_attendees(
+            _extract_labeled_value(
+                user_request,
+                ("参会人", "参与人", "attendees", "attendee"),
+            )
+        ),
+        "description": _extract_labeled_value(
+            user_request,
+            ("描述", "description", "内容", "content", "正文", "body"),
+        ),
     }
 
 
@@ -107,15 +148,16 @@ def build_action(intent: str, user_request: str) -> dict:
             "notes": "Prepare a Gmail draft only. Do not send without explicit user approval.",
         }
     if intent == "calendar_event":
+        calendar_fields = extract_calendar_fields(user_request)
         return {
             **base,
             "connector": "calendar_mcp",
             "operation": "create_event_draft",
             "fields": {
-                "title": "",
-                "time_window": "",
-                "attendees": [],
-                "description": user_request,
+                "title": calendar_fields["title"],
+                "time_window": calendar_fields["time_window"],
+                "attendees": calendar_fields["attendees"],
+                "description": calendar_fields["description"] or user_request,
             },
             "notes": (
                 "Prepare a calendar event draft only. "
@@ -259,6 +301,66 @@ def prepare_gmail_draft_handoff(
     }
 
 
+def prepare_calendar_event_handoff(
+    action: dict[str, Any],
+    *,
+    reviewed: bool,
+    source_path: Path | None = None,
+    overrides: dict[str, str | None] | None = None,
+) -> dict[str, Any]:
+    if not reviewed:
+        raise HandoffValidationError("Calendar event handoff requires --reviewed.")
+
+    if action.get("schema_version") != 1:
+        raise HandoffValidationError("Only schema_version=1 tool-agent requests are supported.")
+    if action.get("agent") != "tool_agent":
+        raise HandoffValidationError("Request must come from tool_agent.")
+    if action.get("intent") != "calendar_event":
+        raise HandoffValidationError("Only calendar_event requests can prepare calendar handoff.")
+    if action.get("connector") != "calendar_mcp":
+        raise HandoffValidationError("Calendar event request must target calendar_mcp.")
+    if action.get("requires_confirmation") is not True:
+        raise HandoffValidationError("requires_confirmation must be true.")
+    if action.get("auto_execute") is not False:
+        raise HandoffValidationError("auto_execute must be false for calendar handoff.")
+    if action.get("operation") != "create_event_draft":
+        raise HandoffValidationError("Unsupported calendar event operation.")
+
+    fields = dict(action.get("fields") or {})
+    for key, value in (overrides or {}).items():
+        if value is not None:
+            fields[key] = value
+
+    args: dict[str, Any] = {
+        "title": _non_empty(fields.get("title")),
+        "time_window": _non_empty(fields.get("time_window")),
+        "attendees": _split_attendees(fields.get("attendees")),
+        "description": _non_empty(fields.get("description")),
+    }
+
+    missing = [key for key in ("title", "time_window") if not args[key]]
+    if missing:
+        raise HandoffValidationError(
+            "Missing required calendar field(s): " + ", ".join(missing)
+        )
+
+    return {
+        "mode": "calendar_event_handoff",
+        "status": "blocked_missing_connector",
+        "provider": "calendar_mcp",
+        "mcp_tool": "",
+        "created_at": _now_bjt().isoformat(timespec="seconds"),
+        "source_request_path": str(source_path) if source_path else "",
+        "arguments": args,
+        "safety": {
+            "creates_event": False,
+            "requires_review": True,
+            "connector_available": False,
+        },
+        "message": "Calendar MCP is not available in this Codex session yet.",
+    }
+
+
 def build_graph():
     graph = StateGraph(ToolAgentState)
     graph.add_node("classify", node_classify)
@@ -301,7 +403,20 @@ def main() -> None:
     parser.add_argument("--to", help="Reviewed Gmail draft recipient override.")
     parser.add_argument("--subject", help="Reviewed Gmail draft subject override.")
     parser.add_argument("--body", help="Reviewed Gmail draft body override.")
+    parser.add_argument(
+        "--calendar-event-handoff",
+        type=Path,
+        metavar="REQUEST_JSON",
+        help="Validate a reviewed tool-agent request for calendar event creation.",
+    )
+    parser.add_argument("--title", help="Reviewed calendar event title override.")
+    parser.add_argument("--time-window", help="Reviewed calendar event time-window override.")
+    parser.add_argument("--attendees", help="Reviewed comma-separated attendees override.")
+    parser.add_argument("--description", help="Reviewed calendar event description override.")
     args = parser.parse_args()
+
+    if args.gmail_draft_handoff and args.calendar_event_handoff:
+        parser.error("use only one handoff mode at a time")
 
     if args.gmail_draft_handoff:
         try:
@@ -321,8 +436,27 @@ def main() -> None:
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return
 
+    if args.calendar_event_handoff:
+        try:
+            action = load_request(args.calendar_event_handoff)
+            result = prepare_calendar_event_handoff(
+                action,
+                reviewed=args.reviewed,
+                source_path=args.calendar_event_handoff,
+                overrides={
+                    "title": args.title,
+                    "time_window": args.time_window,
+                    "attendees": args.attendees,
+                    "description": args.description,
+                },
+            )
+        except HandoffValidationError as exc:
+            parser.error(str(exc))
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return
+
     if not args.request:
-        parser.error("request is required unless --gmail-draft-handoff is used")
+        parser.error("request is required unless a handoff mode is used")
 
     result = run(" ".join(args.request), dry_run=args.dry_run)
     print(json.dumps({

@@ -1,7 +1,7 @@
 # Tool Agent
 
 Date: 2026-06-13
-Scope: Phase 2 local planner and reviewed Gmail draft handoff
+Scope: Phase 2 local planner, reviewed Gmail draft handoff, and local Calendar handoff
 
 ## Decision
 
@@ -21,10 +21,14 @@ Codex MCP connectors and require explicit user confirmation.
 - Build a structured action payload.
 - Extract basic Gmail `to`, `subject`, and `body` fields from labeled natural
   language requests.
+- Extract basic Calendar `title`, `time_window`, `attendees`, and `description`
+  fields from labeled natural language requests.
 - Run in `--dry-run` mode without writing files.
 - Persist request JSON for later MCP handoff when not in dry-run mode.
 - Validate reviewed `email_draft` JSON and prepare Gmail MCP
   `create_draft` arguments.
+- Validate reviewed `calendar_event` JSON locally, while clearly blocking real
+  event creation until Calendar MCP is available.
 
 ## Boundary
 
@@ -103,6 +107,36 @@ external recipient:
 
 This verification does not change the default safety boundary: future sends
 still require explicit user approval after draft review.
+
+## Calendar Event Handoff
+
+Calendar support is currently local-only because no Google Calendar MCP tool is
+available in this Codex session. The Tool Agent can still prepare and validate
+Calendar-shaped requests so the connector can be attached later without changing
+the local request contract.
+
+```bash
+.venv/bin/python agents/tool_agent/agent.py \
+  --calendar-event-handoff logs/tool_agent_requests/<request>.json \
+  --reviewed \
+  --title "Customer visit" \
+  --time-window "next Wednesday afternoon"
+```
+
+Expected result:
+
+- `mode` is `calendar_event_handoff`
+- `status` is `blocked_missing_connector`
+- `safety.creates_event` is `false`
+
+For safety, handoff is rejected unless:
+
+- `--reviewed` is present
+- request `intent` is `calendar_event`
+- request `connector` is `calendar_mcp`
+- `requires_confirmation` is `true`
+- `auto_execute` is `false`
+- reviewed `title` and `time_window` are non-empty
 
 ## Next Steps
 

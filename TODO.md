@@ -46,6 +46,7 @@
 - [x] 从 reviewed Tool Agent JSON 准备 Gmail MCP 草稿创建 handoff（不发送）
 - [x] 验证真实 Gmail 草稿 → 人工确认 → 发送 → 收件人确认收到闭环
 - [x] 从带标签自然语言中抽取基础邮件字段（收件人 / 主题 / 正文）
+- [x] 实现本地 Calendar request schema、字段抽取和 reviewed handoff 校验（等待 Calendar MCP）
 - [ ] 接入 Google Calendar MCP（日程查询、创建）
 - [ ] 自然语言日程管理（"下周三下午安排客户拜访"）
 - [ ] 任务清单管理

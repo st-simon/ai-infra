@@ -47,7 +47,7 @@ load_config → fetch_rss → filter_items → summarize → generate_briefing
 ## Agent 2：工具 Agent (tool_agent)
 
 **文件：** `agents/tool_agent/agent.py`
-**状态：** Phase 2 ◐ reviewed Gmail 草稿/发送闭环已验证；本地仍不直接执行账号动作
+**状态：** Phase 2 ◐ reviewed Gmail 草稿/发送闭环已验证；Calendar 本地 handoff schema 已接入；本地仍不直接执行账号动作
 **依赖：** Gmail MCP、Google Calendar MCP（Codex 中 Gmail 已验证；Calendar 待接入）
 
 ### 职责
@@ -59,7 +59,9 @@ load_config → fetch_rss → filter_items → summarize → generate_briefing
 - 本地 Python 进程不直接读写 Gmail/Calendar
 - `agents/tool_agent/agent.py` 先把自然语言请求转成 `logs/tool_agent_requests/*.json`
 - email_draft 支持从带标签自然语言中抽取基础 `to` / `subject` / `body`
+- calendar_event 支持从带标签自然语言中抽取基础 `title` / `time_window` / `attendees` / `description`
 - reviewed `email_draft` JSON 可通过 `--gmail-draft-handoff ... --reviewed` 生成 Gmail MCP `create_draft` 参数
+- reviewed `calendar_event` JSON 可通过 `--calendar-event-handoff ... --reviewed` 本地校验；当前因 Calendar MCP 未接入而不创建真实日程
 - 所有远程账号动作必须经 Codex MCP connector 和用户确认；发送邮件必须在 Gmail 草稿人工确认后另行确认
 - 创建日程、归档/删除邮件都不是 Phase 2 骨架的默认行为
 
