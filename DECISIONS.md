@@ -90,3 +90,26 @@ Implementation order:
 7. Add Deliberation final cloud synthesizer.
 
 Reference: `docs/MODEL_POLICY.md`.
+
+## 2026-06-13: Tool Agent Starts With MCP Handoff Requests
+
+Decision: start Phase 2 with a local request planner instead of direct Gmail or
+Calendar account actions.
+
+Rationale:
+
+- Codex MCP connectors own Gmail and future Calendar account access.
+- Local Python code should not store connector authorization material or perform
+  remote account mutations in the background.
+- Tool-agent actions need a review boundary before sending email, creating
+  calendar events, deleting messages, or changing labels.
+
+Consequences:
+
+- `agents/tool_agent/agent.py` classifies natural-language requests and writes
+  structured handoff JSON under `logs/tool_agent_requests/`.
+- Gmail and Calendar execution happens later through Codex MCP tools after user
+  review.
+- Phase 2 can progress while Phase 1 launchd delivery is still being observed.
+
+Reference: `docs/TOOL_AGENT.md`.

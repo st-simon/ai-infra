@@ -40,7 +40,8 @@
 
 ## Phase 2：工具 Agent 🔲
 
-- [ ] LangGraph 图骨架
+- [x] LangGraph 图骨架
+- [x] 本地工具请求 JSON handoff（不直接执行 Gmail/Calendar）
 - [x] 接入 Gmail MCP（邮件读取、草稿）
 - [ ] 接入 Google Calendar MCP（日程查询、创建）
 - [ ] 自然语言日程管理（"下周三下午安排客户拜访"）

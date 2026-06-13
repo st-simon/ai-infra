@@ -25,7 +25,7 @@
 ai-infra/
 ├── agents/
 │   ├── news_briefing/      # Phase 1 ✅ 每日新闻简报
-│   ├── tool_agent/         # Phase 2 🔲 Gmail + Calendar
+│   ├── tool_agent/         # Phase 2 ◐ Tool request planning
 │   ├── research/           # Phase 3 🔲 RAG 深度研究
 │   └── deliberation/       # Phase 4 🔲 审议式多模型
 ├── shared/
@@ -54,6 +54,9 @@ python agents/news_briefing/agent.py
 
 # dry-run 验证，不写入 logs/
 python agents/news_briefing/agent.py --dry-run
+
+# Tool Agent dry-run，只规划请求，不触碰 Gmail/Calendar
+python agents/tool_agent/agent.py --dry-run "请帮我草拟一封邮件，确认下周三会议"
 ```
 
 首次配置：
@@ -104,6 +107,7 @@ Gmail 草稿由 Codex 的 Gmail MCP 连接器创建；自动发送保持关闭�
 - `DECISIONS.md`：长期设计决策
 - `docs/SCHEDULING.md`：每日自动运行、launchd 安装与排查
 - `docs/DELIVERY.md`：邮件草稿、Gmail 草稿边界和自动发送策略
+- `docs/TOOL_AGENT.md`：Phase 2 工具 Agent 的 MCP handoff 边界
 - `docs/MODEL_POLICY.md`：本地+云端混合模型策略与执行顺序
 - `docs/LOCAL_MODEL_EVALUATION.md`：本地模型盘点、候选方向和基准测试计划
 - `docs/2026-06-07-ai-infra-audit.md`：本次审核结论与后续路线
