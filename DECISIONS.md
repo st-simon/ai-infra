@@ -194,3 +194,17 @@ Consequences:
   `context`, `status`, and `user_request`.
 - Due-date filters use `YYYY-MM-DD` and match inclusive `due_after` /
   `due_before` windows.
+
+## 2026-06-13: Phase 2C Uses Conservative Calendar NL Parsing
+
+Decision: implement natural-language Calendar parsing as a reviewed local
+parser, not as automatic event creation.
+
+Consequences:
+
+- Common Chinese expressions for explicit dates, relative weekdays, and time
+  ranges can populate `calendar_event` fields.
+- Coarse day periods map to reviewed defaults: morning 09:00-12:00, afternoon
+  14:00-17:00, evening 19:00-21:00.
+- Ambiguous or unsupported expressions leave fields empty so reviewed handoff
+  can block event creation.

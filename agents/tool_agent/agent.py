@@ -21,6 +21,16 @@ REQUEST_DIR = PROJECT_ROOT / "logs" / "tool_agent_requests"
 TASK_LOG_DIR = PROJECT_ROOT / "logs" / "tool_tasks"
 DEFAULT_CALENDAR_TIMEZONE = "America/New_York"
 TASK_STATUSES = {"planned", "in_progress", "done", "blocked", "canceled"}
+WEEKDAY_ALIASES = {
+    "一": 0,
+    "二": 1,
+    "三": 2,
+    "四": 3,
+    "五": 4,
+    "六": 5,
+    "日": 6,
+    "天": 6,
+}
 FIELD_LABELS = (
     "收件人",
     "recipient",
@@ -96,7 +106,16 @@ def _now_bjt() -> datetime:
 def classify_intent(text: str) -> str:
     lowered = text.lower()
     email_keywords = ("gmail", "email", "mail", "邮件", "草稿", "回复", "转发", "简报")
-    calendar_keywords = ("calendar", "meeting", "schedule", "日程", "会议", "拜访", "安排")
+    calendar_keywords = (
+        "calendar",
+        "meeting",
+        "schedule",
+        "日程",
+        "会议",
+        "开会",
+        "拜访",
+        "安排",
+    )
     task_keywords = ("todo", "task", "remind", "提醒", "待办", "任务", "跟进")
 
     if re.search(r"(任务|待办|todo|task)\s*[：:]", text, flags=re.IGNORECASE):
@@ -150,21 +169,194 @@ def _parse_positive_int(value: Any) -> int | None:
     return parsed if parsed > 0 else None
 
 
-def extract_calendar_fields(user_request: str) -> dict[str, Any]:
+def _detect_timezone(text: str) -> str:
+    if any(keyword in text for keyword in ("北京时间", "上海时间", "中国时间")):
+        return "Asia/Shanghai"
+    if "纽约时间" in text or "美东时间" in text:
+        return "America/New_York"
+    return ""
+
+
+def _apply_time_period(hour: int, period: str) -> int:
+    if period in {"下午", "晚上", "傍晚"} and hour < 12:
+        return hour + 12
+    if period == "凌晨" and hour == 12:
+        return 0
+    return hour
+
+
+def _parse_time_text(text: str, default_period: str = "") -> tuple[int, int] | None:
+    match = re.search(
+        r"(?P<hour>\d{1,2})(?:[:：](?P<minute>\d{1,2})|点(?P<minute_cn>\d{1,2})?分?)?",
+        text,
+    )
+    if not match:
+        return None
+    hour = int(match.group("hour"))
+    minute = int(match.group("minute") or match.group("minute_cn") or 0)
+    if hour > 23 or minute > 59:
+        return None
+
+    period_match = re.search(r"(上午|下午|晚上|傍晚|中午|凌晨)", text)
+    period = period_match.group(1) if period_match else default_period
+    if period == "中午" and hour < 11:
+        hour += 12
+    else:
+        hour = _apply_time_period(hour, period)
+    return hour, minute
+
+
+def _parse_date_text(text: str, today: date) -> tuple[date | None, str]:
+    explicit = re.search(
+        r"(?:(?P<year>\d{4})年)?(?P<month>\d{1,2})月(?P<day>\d{1,2})[日号]?",
+        text,
+    )
+    if explicit:
+        year = int(explicit.group("year") or today.year)
+        month = int(explicit.group("month"))
+        day = int(explicit.group("day"))
+        try:
+            return date(year, month, day), explicit.group(0)
+        except ValueError:
+            return None, ""
+
+    relative = re.search(
+        (
+            r"(?P<prefix>下周|本周|这周|周|星期|礼拜)"
+            r"(?P<weekday>[一二三四五六日天])"
+        ),
+        text,
+    )
+    if not relative:
+        return None, ""
+
+    target_weekday = WEEKDAY_ALIASES[relative.group("weekday")]
+    days_ahead = target_weekday - today.weekday()
+    if relative.group("prefix") == "下周":
+        days_ahead += 7
+    elif days_ahead < 0:
+        days_ahead += 7
+    return today + timedelta(days=days_ahead), relative.group(0)
+
+
+def parse_calendar_natural_language(
+    text: str,
+    *,
+    today: date | None = None,
+) -> dict[str, str]:
+    timezone_str = _detect_timezone(text)
+    today = today or _now_bjt().date()
+    event_date, date_fragment = _parse_date_text(text, today)
+    if not event_date:
+        return {"start_time": "", "end_time": "", "timezone_str": timezone_str}
+
+    time_pattern = re.compile(
+        r"(?P<start_period>上午|下午|晚上|傍晚|中午|凌晨)?"
+        r"(?P<start>\d{1,2}(?:[:：]\d{1,2}|点(?:\d{1,2}分?)?)?)"
+        r"\s*(?:到|至|-|~|—)\s*"
+        r"(?P<end_period>上午|下午|晚上|傍晚|中午|凌晨)?"
+        r"(?P<end>\d{1,2}(?:[:：]\d{1,2}|点(?:\d{1,2}分?)?)?)"
+    )
+    match = time_pattern.search(text)
+    if not match:
+        period_match = re.search(r"(上午|下午|晚上|傍晚|中午|凌晨)", text)
+        if not period_match:
+            return {"start_time": "", "end_time": "", "timezone_str": timezone_str}
+        period = period_match.group(1)
+        period_ranges = {
+            "上午": ((9, 0), (12, 0)),
+            "下午": ((14, 0), (17, 0)),
+            "傍晚": ((17, 0), (19, 0)),
+            "晚上": ((19, 0), (21, 0)),
+            "中午": ((12, 0), (13, 0)),
+            "凌晨": ((0, 0), (2, 0)),
+        }
+        start, end = period_ranges[period]
+        start_time = datetime.combine(event_date, datetime.min.time()).replace(
+            hour=start[0],
+            minute=start[1],
+        )
+        end_time = datetime.combine(event_date, datetime.min.time()).replace(
+            hour=end[0],
+            minute=end[1],
+        )
+        return {
+            "start_time": start_time.isoformat(timespec="seconds"),
+            "end_time": end_time.isoformat(timespec="seconds"),
+            "timezone_str": timezone_str,
+            "time_window": f"{date_fragment} {period}".strip(),
+        }
+
+    start_period = match.group("start_period") or ""
+    end_period = match.group("end_period") or start_period
+    start = _parse_time_text(match.group("start"), start_period)
+    end = _parse_time_text(match.group("end"), end_period)
+    if not start or not end:
+        return {"start_time": "", "end_time": "", "timezone_str": timezone_str}
+
+    start_time = datetime.combine(event_date, datetime.min.time()).replace(
+        hour=start[0],
+        minute=start[1],
+    )
+    end_time = datetime.combine(event_date, datetime.min.time()).replace(
+        hour=end[0],
+        minute=end[1],
+    )
+    if end_time <= start_time:
+        end_time += timedelta(days=1)
+
     return {
-        "title": _extract_labeled_value(user_request, ("标题", "主题", "title", "subject")),
+        "start_time": start_time.isoformat(timespec="seconds"),
+        "end_time": end_time.isoformat(timespec="seconds"),
+        "timezone_str": timezone_str,
+        "time_window": f"{date_fragment} {match.group(0)}".strip(),
+    }
+
+
+def infer_calendar_title(text: str) -> str:
+    quoted = re.search(r"[“\"'](?P<title>[^”\"']+)[”\"']", text)
+    subject = quoted.group("title").strip() if quoted else ""
+    if subject and "准备会议" in text:
+        return f"{subject}准备会议"
+    if subject and "会议" in text:
+        return f"{subject}会议"
+    if subject:
+        return subject
+
+    visit = re.search(r"安排(?P<title>[^，,。；;]*拜访)", text)
+    if visit:
+        return visit.group("title").strip()
+
+    meeting = re.search(
+        r"(?:开|安排)(?:一个|一次|场)?(?P<title>[^，,。；;]*会议)",
+        text,
+    )
+    if meeting:
+        return meeting.group("title").strip()
+
+    return ""
+
+
+def extract_calendar_fields(user_request: str) -> dict[str, Any]:
+    parsed = parse_calendar_natural_language(user_request)
+    parsed_timezone = _detect_timezone(user_request) or parsed.get("timezone_str", "")
+    return {
+        "title": _extract_labeled_value(
+            user_request,
+            ("标题", "主题", "title", "subject"),
+        ) or infer_calendar_title(user_request),
         "time_window": _extract_labeled_value(
             user_request,
             ("时间窗口", "时间", "time_window", "time", "when"),
-        ),
+        ) or parsed.get("time_window", ""),
         "start_time": _extract_labeled_value(
             user_request,
             ("开始时间", "开始", "start_time", "start"),
-        ),
+        ) or parsed.get("start_time", ""),
         "end_time": _extract_labeled_value(
             user_request,
             ("结束时间", "结束", "end_time", "end"),
-        ),
+        ) or parsed.get("end_time", ""),
         "attendees": _split_attendees(
             _extract_labeled_value(
                 user_request,
@@ -174,7 +366,7 @@ def extract_calendar_fields(user_request: str) -> dict[str, Any]:
         "timezone_str": _extract_labeled_value(
             user_request,
             ("时区", "timezone_str", "timezone"),
-        ),
+        ) or parsed_timezone,
         "calendar_id": _extract_labeled_value(
             user_request,
             ("日历", "calendar_id", "calendar"),

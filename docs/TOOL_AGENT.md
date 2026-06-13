@@ -24,6 +24,8 @@ Codex MCP connectors and require explicit user confirmation.
 - Extract basic Calendar `title`, `time_window`, `attendees`, and `description`
   fields from labeled natural language requests, plus optional
   `reminder_minutes`.
+- Parse common Chinese Calendar expressions such as `6月25日上午10点到12点`
+  and `下周三下午安排客户拜访` into reviewed Calendar fields.
 - Extract basic local task `title`, `due`, and `context` fields from labeled
   natural language requests.
 - Run in `--dry-run` mode without writing files.
@@ -157,6 +159,17 @@ event reminders; attendee invitations require attendee email addresses.
 Timezone policy: use the connected Google Calendar display timezone by default;
 only override it when the user explicitly names another timezone such as
 `Asia/Shanghai` or provides datetimes with explicit offsets.
+
+Natural-language parsing is intentionally conservative. It supports:
+
+- explicit dates such as `2026年6月25日` or `6月25日`
+- relative weekdays such as `下周三`
+- time ranges such as `上午10点到12点` or `下午2点到4点`
+- coarse reviewed defaults: `上午` -> 09:00-12:00,
+  `下午` -> 14:00-17:00, `晚上` -> 19:00-21:00
+- timezone keywords such as `北京时间` / `上海时间`
+
+Parsed results still require review before any MCP event creation.
 
 ## Local Task Log
 

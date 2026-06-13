@@ -1,5 +1,6 @@
 import json
 import unittest
+from datetime import date
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -12,6 +13,7 @@ from agents.tool_agent.agent import (
     extract_email_fields,
     extract_task_fields,
     list_task_records,
+    parse_calendar_natural_language,
     prepare_calendar_event_handoff,
     prepare_gmail_draft_handoff,
     record_task_log,
@@ -164,6 +166,58 @@ class GmailDraftHandoffTests(unittest.TestCase):
 
 
 class CalendarEventHandoffTests(unittest.TestCase):
+    def test_parses_explicit_chinese_calendar_datetime_range(self):
+        fields = extract_calendar_fields(
+            "2026年6月25日开一个有关“AI应用研讨会”的准备会议，"
+            "时间定在上午10:00到12:00"
+        )
+
+        self.assertEqual(fields["title"], "AI应用研讨会准备会议")
+        self.assertEqual(fields["start_time"], "2026-06-25T10:00:00")
+        self.assertEqual(fields["end_time"], "2026-06-25T12:00:00")
+        self.assertEqual(fields["time_window"], "2026年6月25日 上午10:00到12:00")
+
+    def test_parses_relative_weekday_calendar_datetime_range(self):
+        parsed = parse_calendar_natural_language(
+            "下周三下午2点到4点安排客户拜访",
+            today=date(2026, 6, 13),
+        )
+
+        self.assertEqual(parsed["start_time"], "2026-06-17T14:00:00")
+        self.assertEqual(parsed["end_time"], "2026-06-17T16:00:00")
+        self.assertEqual(parsed["time_window"], "下周三 下午2点到4点")
+
+    def test_parses_coarse_relative_weekday_period(self):
+        parsed = parse_calendar_natural_language(
+            "下周三下午安排客户拜访",
+            today=date(2026, 6, 13),
+        )
+
+        self.assertEqual(parsed["start_time"], "2026-06-17T14:00:00")
+        self.assertEqual(parsed["end_time"], "2026-06-17T17:00:00")
+        self.assertEqual(parsed["time_window"], "下周三 下午")
+
+    def test_calendar_action_infers_visit_title_from_natural_language(self):
+        action = build_action("calendar_event", "下周三下午安排客户拜访")
+
+        self.assertEqual(action["fields"]["title"], "客户拜访")
+
+    def test_classifies_open_meeting_as_calendar(self):
+        intent = classify_intent(
+            "北京时间6月25日上午10点到12点开会，标题：准备会"
+        )
+
+        self.assertEqual(intent, "calendar_event")
+
+    def test_parses_explicit_timezone_keyword(self):
+        fields = extract_calendar_fields(
+            "北京时间6月25日上午10点到12点开会，标题：准备会"
+        )
+
+        self.assertEqual(fields["timezone_str"], "Asia/Shanghai")
+        self.assertEqual(fields["start_time"], "2026-06-25T10:00:00")
+        self.assertEqual(fields["end_time"], "2026-06-25T12:00:00")
+
     def test_extracts_chinese_calendar_fields(self):
         fields = extract_calendar_fields(
             "安排会议，标题：客户拜访 时间：下周三下午 "

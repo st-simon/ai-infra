@@ -60,6 +60,7 @@ load_config → fetch_rss → filter_items → summarize → generate_briefing
 - `agents/tool_agent/agent.py` 先把自然语言请求转成 `logs/tool_agent_requests/*.json`
 - email_draft 支持从带标签自然语言中抽取基础 `to` / `subject` / `body`
 - calendar_event 支持从带标签自然语言中抽取基础 `title` / `time_window` / `start_time` / `end_time` / `attendees` / `description` / `reminder_minutes`
+- calendar_event 支持常见中文自然语言日程解析，如明确日期、`下周三`、`上午10点到12点`、`下午` 默认时段
 - task_note 支持从带标签自然语言中抽取基础 `title` / `due` / `context`，并在非 dry-run 时写入 `logs/tool_tasks/*.json`
 - reviewed `email_draft` JSON 可通过 `--gmail-draft-handoff ... --reviewed` 生成 Gmail MCP `create_draft` 参数
 - reviewed `calendar_event` JSON 可通过 `--calendar-event-handoff ... --reviewed` 生成 Google Calendar MCP `create_event` 参数；真实创建日程仍需另行确认

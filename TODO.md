@@ -54,7 +54,7 @@
 - [x] 本地 task-log：task_note 写入 `logs/tool_tasks/*.json`
 - [x] 本地任务列表和状态更新（planned / in_progress / done / blocked / canceled）
 - [x] 本地任务搜索 / 截止日期筛选
-- [ ] 自然语言日程管理（"下周三下午安排客户拜访"）
+- [x] Phase 2C 自然语言日程解析增强（明确日期、下周几、上午/下午/晚上、常见时间段）
 
 ## Phase 3：研究 Agent 🔲
 
