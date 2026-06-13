@@ -196,6 +196,16 @@ Filter by status:
 .venv/bin/python agents/tool_agent/agent.py --list-tasks --task-status planned
 ```
 
+Search text and due dates:
+
+```bash
+.venv/bin/python agents/tool_agent/agent.py \
+  --list-tasks \
+  --task-query seminar \
+  --due-after 2026-06-01 \
+  --due-before 2026-06-30
+```
+
 Update status:
 
 ```bash
@@ -217,4 +227,5 @@ Supported statuses:
 - Exercise the Calendar path with a real reviewed event, first by creating a
   draft-equivalent request JSON and then by explicitly approving MCP event
   creation.
-- Add task text search and due-date filters for local task records.
+- Decide whether local tasks should stay file-based or graduate to a richer
+  task store after real usage.

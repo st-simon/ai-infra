@@ -190,4 +190,7 @@ Consequences:
 - Task records start with `status=planned`.
 - Local task records can be listed, filtered by status, and updated to
   `planned`, `in_progress`, `done`, `blocked`, or `canceled`.
-- Text search and due-date filters are future Phase 2B follow-ups.
+- Local task records can be searched by text across `task_id`, `title`, `due`,
+  `context`, `status`, and `user_request`.
+- Due-date filters use `YYYY-MM-DD` and match inclusive `due_after` /
+  `due_before` windows.

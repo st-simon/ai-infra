@@ -332,6 +332,39 @@ class LocalTaskLogTests(unittest.TestCase):
             with self.assertRaisesRegex(HandoffValidationError, "Unsupported task status"):
                 update_task_status(str(task_path), "waiting", task_dir=task_dir)
 
+    def test_list_task_records_filters_by_text_query(self):
+        with TemporaryDirectory() as tmpdir:
+            task_dir = Path(tmpdir)
+            record_task_log(task_request(title="Prepare seminar notes"), task_dir=task_dir)
+            record_task_log(
+                task_request(title="Buy office supplies", context="Procurement errand."),
+                task_dir=task_dir,
+            )
+
+            tasks = list_task_records(task_dir=task_dir, query="seminar")
+
+            self.assertEqual([task["title"] for task in tasks], ["Prepare seminar notes"])
+
+    def test_list_task_records_filters_by_due_window(self):
+        with TemporaryDirectory() as tmpdir:
+            task_dir = Path(tmpdir)
+            record_task_log(task_request(title="Early task", due="2026-06-10"), task_dir=task_dir)
+            record_task_log(task_request(title="Middle task", due="2026-06-20"), task_dir=task_dir)
+            record_task_log(task_request(title="Late task", due="2026-06-30"), task_dir=task_dir)
+
+            tasks = list_task_records(
+                task_dir=task_dir,
+                due_after="2026-06-15",
+                due_before="2026-06-25",
+            )
+
+            self.assertEqual([task["title"] for task in tasks], ["Middle task"])
+
+    def test_list_task_records_rejects_invalid_due_filter(self):
+        with TemporaryDirectory() as tmpdir:
+            with self.assertRaisesRegex(HandoffValidationError, "YYYY-MM-DD"):
+                list_task_records(task_dir=Path(tmpdir), due_before="2026/06/25")
+
 
 if __name__ == "__main__":
     unittest.main()

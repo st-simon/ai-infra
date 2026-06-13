@@ -9,7 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
-from datetime import datetime, timezone, timedelta
+from datetime import date, datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any, TypedDict
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -387,13 +387,37 @@ def find_task_path(identifier: str, *, task_dir: Path = TASK_LOG_DIR) -> Path:
     raise HandoffValidationError(f"Task record not found: {identifier}")
 
 
+def _parse_task_due(value: str) -> date:
+    text = _non_empty(value)
+    if not text:
+        raise HandoffValidationError("Task due date is empty.")
+    try:
+        return date.fromisoformat(text)
+    except ValueError as exc:
+        raise HandoffValidationError(f"Task due date must use YYYY-MM-DD: {value}") from exc
+
+
+def _task_matches_query(record: dict[str, Any], query: str) -> bool:
+    lowered = query.lower()
+    haystack = "\n".join(
+        str(record.get(field, ""))
+        for field in ("task_id", "title", "due", "context", "status", "user_request")
+    ).lower()
+    return lowered in haystack
+
+
 def list_task_records(
     *,
     task_dir: Path = TASK_LOG_DIR,
     status: str | None = None,
+    query: str | None = None,
+    due_before: str | None = None,
+    due_after: str | None = None,
 ) -> list[dict[str, Any]]:
     if status and status not in TASK_STATUSES:
         raise HandoffValidationError(f"Unsupported task status: {status}")
+    due_before_date = _parse_task_due(due_before) if due_before else None
+    due_after_date = _parse_task_due(due_after) if due_after else None
     if not task_dir.exists():
         return []
 
@@ -402,6 +426,17 @@ def list_task_records(
         record = load_task_record(task_path)
         if status and record.get("status") != status:
             continue
+        if query and not _task_matches_query(record, query):
+            continue
+        if due_before_date or due_after_date:
+            due_text = _non_empty(record.get("due"))
+            if not due_text:
+                continue
+            due_date = _parse_task_due(due_text)
+            if due_before_date and due_date > due_before_date:
+                continue
+            if due_after_date and due_date < due_after_date:
+                continue
         records.append(record)
     return sorted(records, key=lambda record: str(record.get("created_at", "")))
 
@@ -698,6 +733,9 @@ def main() -> None:
         help="Update a local task record status.",
     )
     parser.add_argument("--new-status", help="New status for --update-task-status.")
+    parser.add_argument("--task-query", help="Filter local tasks by text query.")
+    parser.add_argument("--due-before", help="Filter local tasks due on or before YYYY-MM-DD.")
+    parser.add_argument("--due-after", help="Filter local tasks due on or after YYYY-MM-DD.")
     args = parser.parse_args()
 
     mode_count = sum(
@@ -757,12 +795,20 @@ def main() -> None:
 
     if args.list_tasks:
         try:
-            tasks = list_task_records(status=args.task_status)
+            tasks = list_task_records(
+                status=args.task_status,
+                query=args.task_query,
+                due_before=args.due_before,
+                due_after=args.due_after,
+            )
         except HandoffValidationError as exc:
             parser.error(str(exc))
         print(json.dumps({
             "mode": "local_task_list",
             "status_filter": args.task_status or "",
+            "query": args.task_query or "",
+            "due_before": args.due_before or "",
+            "due_after": args.due_after or "",
             "count": len(tasks),
             "tasks": tasks,
         }, ensure_ascii=False, indent=2))
@@ -783,6 +829,12 @@ def main() -> None:
 
     if args.task_status:
         parser.error("--task-status requires --list-tasks")
+    if args.task_query:
+        parser.error("--task-query requires --list-tasks")
+    if args.due_before:
+        parser.error("--due-before requires --list-tasks")
+    if args.due_after:
+        parser.error("--due-after requires --list-tasks")
 
     if not args.request:
         parser.error("request is required unless a handoff mode is used")
