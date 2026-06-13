@@ -142,12 +142,17 @@ For safety, handoff is rejected unless:
 - `requires_confirmation` is `true`
 - `auto_execute` is `false`
 - reviewed `title`, `start_time`, and `end_time` are non-empty
-- `start_time` and `end_time` are full RFC3339 datetimes with `Z` or an
-  explicit UTC offset
+- `start_time` and `end_time` include date and time. If they omit `Z` or a UTC
+  offset, Tool Agent interprets them in the connected calendar display timezone
+  (`America/New_York` as currently verified).
 
 When `reminder_minutes` is present, the handoff emits a Google Calendar popup
 reminder override. Reminder offsets apply to the connected calendar user's
 event reminders; attendee invitations require attendee email addresses.
+
+Timezone policy: use the connected Google Calendar display timezone by default;
+only override it when the user explicitly names another timezone such as
+`Asia/Shanghai` or provides datetimes with explicit offsets.
 
 ## Next Steps
 

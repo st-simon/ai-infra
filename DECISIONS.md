@@ -161,3 +161,17 @@ Consequences:
   offset.
 - Local Python still does not create events. It emits MCP arguments, and Codex
   only calls Google Calendar MCP after explicit user confirmation.
+
+## 2026-06-13: Calendar Defaults To Connected Calendar Timezone
+
+Decision: interpret Calendar requests in the connected Google Calendar display
+timezone by default, unless the user explicitly provides another timezone or
+datetimes with offsets.
+
+Consequences:
+
+- The current verified default timezone is `America/New_York`.
+- Naive datetimes such as `2026-06-25T10:00:00` are normalized to the connected
+  calendar timezone before MCP handoff.
+- Explicit timezones such as `Asia/Shanghai` or explicit offsets such as
+  `+08:00` remain user intent and are not overridden.

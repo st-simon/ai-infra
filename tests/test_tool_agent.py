@@ -178,8 +178,8 @@ class CalendarEventHandoffTests(unittest.TestCase):
         with self.assertRaisesRegex(HandoffValidationError, "end_time"):
             prepare_calendar_event_handoff(calendar_request(end_time=""), reviewed=True)
 
-    def test_calendar_handoff_rejects_non_rfc3339_times(self):
-        with self.assertRaisesRegex(HandoffValidationError, "RFC3339"):
+    def test_calendar_handoff_rejects_non_datetime_values(self):
+        with self.assertRaisesRegex(HandoffValidationError, "date and time"):
             prepare_calendar_event_handoff(
                 calendar_request(start_time="next Wednesday afternoon"),
                 reviewed=True,
@@ -206,6 +206,20 @@ class CalendarEventHandoffTests(unittest.TestCase):
         )
         self.assertFalse(result["safety"]["creates_event"])
         self.assertTrue(result["safety"]["connector_available"])
+
+    def test_calendar_handoff_defaults_naive_times_to_calendar_timezone(self):
+        result = prepare_calendar_event_handoff(
+            calendar_request(
+                start_time="2026-06-25T10:00:00",
+                end_time="2026-06-25T12:00:00",
+                timezone_str="",
+            ),
+            reviewed=True,
+        )
+
+        self.assertEqual(result["arguments"]["start_time"], "2026-06-25T10:00:00-04:00")
+        self.assertEqual(result["arguments"]["end_time"], "2026-06-25T12:00:00-04:00")
+        self.assertEqual(result["arguments"]["timezone_str"], "America/New_York")
 
 
 if __name__ == "__main__":

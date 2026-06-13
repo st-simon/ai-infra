@@ -12,11 +12,13 @@ import re
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any, TypedDict
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from langgraph.graph import END, START, StateGraph
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 REQUEST_DIR = PROJECT_ROOT / "logs" / "tool_agent_requests"
+DEFAULT_CALENDAR_TIMEZONE = "America/New_York"
 FIELD_LABELS = (
     "收件人",
     "recipient",
@@ -293,6 +295,28 @@ def _is_rfc3339_datetime(value: str) -> bool:
     return "T" in value
 
 
+def _normalize_calendar_datetime(value: str, timezone_str: str) -> str:
+    if _is_rfc3339_datetime(value):
+        return value
+
+    if not "T" in value:
+        raise HandoffValidationError("Calendar datetime must include date and time.")
+
+    try:
+        timezone_info = ZoneInfo(timezone_str)
+    except ZoneInfoNotFoundError as exc:
+        raise HandoffValidationError(f"Unknown calendar timezone: {timezone_str}") from exc
+
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError as exc:
+        raise HandoffValidationError(f"Invalid calendar datetime: {value}") from exc
+
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone_info)
+    return parsed.isoformat(timespec="seconds")
+
+
 def prepare_gmail_draft_handoff(
     action: dict[str, Any],
     *,
@@ -398,6 +422,7 @@ def prepare_calendar_event_handoff(
         if value is not None:
             fields[key] = value
 
+    timezone_str = _non_empty(fields.get("timezone_str")) or DEFAULT_CALENDAR_TIMEZONE
     args: dict[str, Any] = {
         "title": _non_empty(fields.get("title")),
         "time_window": _non_empty(fields.get("time_window")),
@@ -405,9 +430,10 @@ def prepare_calendar_event_handoff(
         "end_time": _non_empty(fields.get("end_time")),
         "attendees": _split_attendees(fields.get("attendees")),
         "description": _non_empty(fields.get("description")),
+        "timezone_str": timezone_str,
     }
 
-    for optional_key in ("calendar_id", "timezone_str", "location"):
+    for optional_key in ("calendar_id", "location"):
         value = fields.get(optional_key)
         if _non_empty(value):
             args[optional_key] = _non_empty(value)
@@ -428,13 +454,8 @@ def prepare_calendar_event_handoff(
         raise HandoffValidationError(
             "Missing required calendar field(s): " + ", ".join(missing)
         )
-    invalid_times = [
-        key for key in ("start_time", "end_time") if not _is_rfc3339_datetime(args[key])
-    ]
-    if invalid_times:
-        raise HandoffValidationError(
-            "Calendar field(s) must be RFC3339 datetime(s): " + ", ".join(invalid_times)
-        )
+    args["start_time"] = _normalize_calendar_datetime(args["start_time"], timezone_str)
+    args["end_time"] = _normalize_calendar_datetime(args["end_time"], timezone_str)
 
     args.pop("time_window", None)
 
