@@ -22,7 +22,8 @@ Codex MCP connectors and require explicit user confirmation.
 - Extract basic Gmail `to`, `subject`, and `body` fields from labeled natural
   language requests.
 - Extract basic Calendar `title`, `time_window`, `attendees`, and `description`
-  fields from labeled natural language requests.
+  fields from labeled natural language requests, plus optional
+  `reminder_minutes`.
 - Run in `--dry-run` mode without writing files.
 - Persist request JSON for later MCP handoff when not in dry-run mode.
 - Validate reviewed `email_draft` JSON and prepare Gmail MCP
@@ -122,7 +123,8 @@ Google Calendar MCP `create_event` arguments.
   --title "Customer visit" \
   --start-time "2026-06-17T14:00:00+08:00" \
   --end-time "2026-06-17T15:00:00+08:00" \
-  --timezone "Asia/Shanghai"
+  --timezone "Asia/Shanghai" \
+  --reminder-minutes 4320
 ```
 
 Expected result:
@@ -142,6 +144,10 @@ For safety, handoff is rejected unless:
 - reviewed `title`, `start_time`, and `end_time` are non-empty
 - `start_time` and `end_time` are full RFC3339 datetimes with `Z` or an
   explicit UTC offset
+
+When `reminder_minutes` is present, the handoff emits a Google Calendar popup
+reminder override. Reminder offsets apply to the connected calendar user's
+event reminders; attendee invitations require attendee email addresses.
 
 ## Next Steps
 

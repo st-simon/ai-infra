@@ -39,6 +39,7 @@ def calendar_request(**field_overrides):
         "timezone_str": "Asia/Shanghai",
         "calendar_id": "primary",
         "location": "",
+        "reminder_minutes": "",
         "description": "Discuss the project plan.",
     }
     fields.update(field_overrides)
@@ -139,7 +140,7 @@ class CalendarEventHandoffTests(unittest.TestCase):
             "开始：2026-06-17T14:00:00+08:00 "
             "结束：2026-06-17T15:00:00+08:00 "
             "参会人：a@example.com，b@example.com "
-            "时区：Asia/Shanghai 地点：办公室 描述：讨论方案。"
+            "时区：Asia/Shanghai 地点：办公室 提醒：4320 描述：讨论方案。"
         )
 
         self.assertEqual(fields["title"], "客户拜访")
@@ -149,6 +150,7 @@ class CalendarEventHandoffTests(unittest.TestCase):
         self.assertEqual(fields["attendees"], ["a@example.com", "b@example.com"])
         self.assertEqual(fields["timezone_str"], "Asia/Shanghai")
         self.assertEqual(fields["location"], "办公室")
+        self.assertEqual(fields["reminder_minutes"], "4320")
         self.assertEqual(fields["description"], "讨论方案。")
 
     def test_calendar_action_uses_extracted_fields(self):
@@ -157,7 +159,7 @@ class CalendarEventHandoffTests(unittest.TestCase):
             "meeting title: Customer visit start: 2026-06-17T14:00:00+08:00 "
             "end: 2026-06-17T15:00:00+08:00 "
             "attendees: a@example.com, b@example.com timezone: Asia/Shanghai "
-            "description: Discuss plan.",
+            "reminder: 4320 description: Discuss plan.",
         )
 
         self.assertEqual(action["fields"]["title"], "Customer visit")
@@ -165,6 +167,7 @@ class CalendarEventHandoffTests(unittest.TestCase):
         self.assertEqual(action["fields"]["end_time"], "2026-06-17T15:00:00+08:00")
         self.assertEqual(action["fields"]["attendees"], ["a@example.com", "b@example.com"])
         self.assertEqual(action["fields"]["timezone_str"], "Asia/Shanghai")
+        self.assertEqual(action["fields"]["reminder_minutes"], "4320")
         self.assertEqual(action["fields"]["description"], "Discuss plan.")
 
     def test_calendar_handoff_requires_reviewed_flag(self):
@@ -184,7 +187,7 @@ class CalendarEventHandoffTests(unittest.TestCase):
 
     def test_calendar_handoff_builds_create_event_arguments(self):
         result = prepare_calendar_event_handoff(
-            calendar_request(attendees="a@example.com; b@example.com"),
+            calendar_request(attendees="a@example.com; b@example.com", reminder_minutes="4320"),
             reviewed=True,
         )
 
@@ -197,6 +200,10 @@ class CalendarEventHandoffTests(unittest.TestCase):
         self.assertEqual(result["arguments"]["attendees"], ["a@example.com", "b@example.com"])
         self.assertEqual(result["arguments"]["calendar_id"], "primary")
         self.assertEqual(result["arguments"]["timezone_str"], "Asia/Shanghai")
+        self.assertEqual(
+            result["arguments"]["reminders"],
+            {"use_default": False, "overrides": [{"method": "popup", "minutes": 4320}]},
+        )
         self.assertFalse(result["safety"]["creates_event"])
         self.assertTrue(result["safety"]["connector_available"])
 

@@ -48,6 +48,7 @@
 - [x] 从带标签自然语言中抽取基础邮件字段（收件人 / 主题 / 正文）
 - [x] 实现本地 Calendar request schema、字段抽取和 reviewed handoff 校验（等待 Calendar MCP）
 - [x] 接入 Google Calendar MCP 并完成 profile 验证
+- [x] Calendar handoff 支持事件提醒偏移（如三天前 = 4320 分钟）
 - [ ] 真实 Calendar 事件创建闭环验证（reviewed request → MCP create_event）
 - [ ] 自然语言日程管理（"下周三下午安排客户拜访"）
 - [ ] 任务清单管理

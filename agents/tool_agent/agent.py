@@ -47,6 +47,9 @@ FIELD_LABELS = (
     "timezone_str",
     "地点",
     "location",
+    "提醒",
+    "reminder",
+    "reminder_minutes",
     "日历",
     "calendar",
     "calendar_id",
@@ -119,6 +122,17 @@ def _split_attendees(value: Any) -> list[str]:
     return [str(candidate).strip() for candidate in candidates if str(candidate).strip()]
 
 
+def _parse_positive_int(value: Any) -> int | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    match = re.search(r"\d+", text)
+    if not match:
+        return None
+    parsed = int(match.group(0))
+    return parsed if parsed > 0 else None
+
+
 def extract_calendar_fields(user_request: str) -> dict[str, Any]:
     return {
         "title": _extract_labeled_value(user_request, ("标题", "主题", "title", "subject")),
@@ -149,6 +163,10 @@ def extract_calendar_fields(user_request: str) -> dict[str, Any]:
             ("日历", "calendar_id", "calendar"),
         ),
         "location": _extract_labeled_value(user_request, ("地点", "location")),
+        "reminder_minutes": _extract_labeled_value(
+            user_request,
+            ("提醒", "reminder_minutes", "reminder"),
+        ),
         "description": _extract_labeled_value(
             user_request,
             ("描述", "description", "内容", "content", "正文", "body"),
@@ -195,6 +213,7 @@ def build_action(intent: str, user_request: str) -> dict:
                 "timezone_str": calendar_fields["timezone_str"],
                 "calendar_id": calendar_fields["calendar_id"],
                 "location": calendar_fields["location"],
+                "reminder_minutes": calendar_fields["reminder_minutes"],
                 "description": calendar_fields["description"] or user_request,
             },
             "notes": (
@@ -393,6 +412,13 @@ def prepare_calendar_event_handoff(
         if _non_empty(value):
             args[optional_key] = _non_empty(value)
 
+    reminder_minutes = _parse_positive_int(fields.get("reminder_minutes"))
+    if reminder_minutes is not None:
+        args["reminders"] = {
+            "use_default": False,
+            "overrides": [{"method": "popup", "minutes": reminder_minutes}],
+        }
+
     add_google_meet = fields.get("add_google_meet")
     if isinstance(add_google_meet, bool):
         args["add_google_meet"] = add_google_meet
@@ -486,6 +512,7 @@ def main() -> None:
     parser.add_argument("--description", help="Reviewed calendar event description override.")
     parser.add_argument("--location", help="Reviewed calendar event location override.")
     parser.add_argument("--calendar-id", help="Reviewed Google Calendar ID override.")
+    parser.add_argument("--reminder-minutes", help="Reviewed reminder offset in minutes.")
     args = parser.parse_args()
 
     if args.gmail_draft_handoff and args.calendar_event_handoff:
@@ -526,6 +553,7 @@ def main() -> None:
                     "description": args.description,
                     "location": args.location,
                     "calendar_id": args.calendar_id,
+                    "reminder_minutes": args.reminder_minutes,
                 },
             )
         except HandoffValidationError as exc:
