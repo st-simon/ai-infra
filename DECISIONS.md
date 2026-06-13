@@ -146,3 +146,18 @@ Consequences:
   `safety.creates_event=false`.
 - Real event creation stays blocked until a Codex-accessible Google Calendar MCP
   connector exists and the user separately approves creating an event.
+
+## 2026-06-13: Google Calendar MCP Connected
+
+Decision: install the Google Calendar plugin and connect Tool Agent reviewed
+calendar handoff to Google Calendar MCP `create_event` arguments.
+
+Consequences:
+
+- Calendar MCP profile verification succeeded for `Jun Xia
+  <junexia2018@gmail.com>`.
+- `calendar_event` handoff requires reviewed `title`, `start_time`, and
+  `end_time`; start/end must be RFC3339 datetimes with `Z` or an explicit UTC
+  offset.
+- Local Python still does not create events. It emits MCP arguments, and Codex
+  only calls Google Calendar MCP after explicit user confirmation.

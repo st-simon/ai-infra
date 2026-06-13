@@ -1,7 +1,7 @@
 # Tool Agent
 
 Date: 2026-06-13
-Scope: Phase 2 local planner, reviewed Gmail draft handoff, and local Calendar handoff
+Scope: Phase 2 local planner, reviewed Gmail draft handoff, and Calendar MCP handoff
 
 ## Decision
 
@@ -27,8 +27,8 @@ Codex MCP connectors and require explicit user confirmation.
 - Persist request JSON for later MCP handoff when not in dry-run mode.
 - Validate reviewed `email_draft` JSON and prepare Gmail MCP
   `create_draft` arguments.
-- Validate reviewed `calendar_event` JSON locally, while clearly blocking real
-  event creation until Calendar MCP is available.
+- Validate reviewed `calendar_event` JSON and prepare Google Calendar MCP
+  `create_event` arguments when exact start/end datetimes are provided.
 
 ## Boundary
 
@@ -110,23 +110,26 @@ still require explicit user approval after draft review.
 
 ## Calendar Event Handoff
 
-Calendar support is currently local-only because no Google Calendar MCP tool is
-available in this Codex session. The Tool Agent can still prepare and validate
-Calendar-shaped requests so the connector can be attached later without changing
-the local request contract.
+Google Calendar MCP is connected and profile-verified for
+`Jun Xia <junexia2018@gmail.com>`. The local Python process still does not
+create events directly; it validates reviewed request JSON and prints the exact
+Google Calendar MCP `create_event` arguments.
 
 ```bash
 .venv/bin/python agents/tool_agent/agent.py \
   --calendar-event-handoff logs/tool_agent_requests/<request>.json \
   --reviewed \
   --title "Customer visit" \
-  --time-window "next Wednesday afternoon"
+  --start-time "2026-06-17T14:00:00+08:00" \
+  --end-time "2026-06-17T15:00:00+08:00" \
+  --timezone "Asia/Shanghai"
 ```
 
 Expected result:
 
 - `mode` is `calendar_event_handoff`
-- `status` is `blocked_missing_connector`
+- `status` is `ready_for_mcp`
+- `mcp_tool` is `mcp__codex_apps__google_calendar._create_event`
 - `safety.creates_event` is `false`
 
 For safety, handoff is rejected unless:
@@ -136,9 +139,13 @@ For safety, handoff is rejected unless:
 - request `connector` is `calendar_mcp`
 - `requires_confirmation` is `true`
 - `auto_execute` is `false`
-- reviewed `title` and `time_window` are non-empty
+- reviewed `title`, `start_time`, and `end_time` are non-empty
+- `start_time` and `end_time` are full RFC3339 datetimes with `Z` or an
+  explicit UTC offset
 
 ## Next Steps
 
-- Add Calendar MCP once a Codex-accessible connector is available.
+- Exercise the Calendar path with a real reviewed event, first by creating a
+  draft-equivalent request JSON and then by explicitly approving MCP event
+  creation.
 - Add a local task-log target before selecting a real task system.

@@ -32,8 +32,13 @@ def email_request(**field_overrides):
 def calendar_request(**field_overrides):
     fields = {
         "title": "Customer visit",
-        "time_window": "next Wednesday afternoon",
+        "time_window": "",
+        "start_time": "2026-06-17T14:00:00+08:00",
+        "end_time": "2026-06-17T15:00:00+08:00",
         "attendees": ["person@example.com"],
+        "timezone_str": "Asia/Shanghai",
+        "calendar_id": "primary",
+        "location": "",
         "description": "Discuss the project plan.",
     }
     fields.update(field_overrides)
@@ -131,24 +136,35 @@ class CalendarEventHandoffTests(unittest.TestCase):
     def test_extracts_chinese_calendar_fields(self):
         fields = extract_calendar_fields(
             "安排会议，标题：客户拜访 时间：下周三下午 "
-            "参会人：a@example.com，b@example.com 描述：讨论方案。"
+            "开始：2026-06-17T14:00:00+08:00 "
+            "结束：2026-06-17T15:00:00+08:00 "
+            "参会人：a@example.com，b@example.com "
+            "时区：Asia/Shanghai 地点：办公室 描述：讨论方案。"
         )
 
         self.assertEqual(fields["title"], "客户拜访")
         self.assertEqual(fields["time_window"], "下周三下午")
+        self.assertEqual(fields["start_time"], "2026-06-17T14:00:00+08:00")
+        self.assertEqual(fields["end_time"], "2026-06-17T15:00:00+08:00")
         self.assertEqual(fields["attendees"], ["a@example.com", "b@example.com"])
+        self.assertEqual(fields["timezone_str"], "Asia/Shanghai")
+        self.assertEqual(fields["location"], "办公室")
         self.assertEqual(fields["description"], "讨论方案。")
 
     def test_calendar_action_uses_extracted_fields(self):
         action = build_action(
             "calendar_event",
-            "meeting title: Customer visit when: next Wednesday afternoon "
-            "attendees: a@example.com, b@example.com description: Discuss plan.",
+            "meeting title: Customer visit start: 2026-06-17T14:00:00+08:00 "
+            "end: 2026-06-17T15:00:00+08:00 "
+            "attendees: a@example.com, b@example.com timezone: Asia/Shanghai "
+            "description: Discuss plan.",
         )
 
         self.assertEqual(action["fields"]["title"], "Customer visit")
-        self.assertEqual(action["fields"]["time_window"], "next Wednesday afternoon")
+        self.assertEqual(action["fields"]["start_time"], "2026-06-17T14:00:00+08:00")
+        self.assertEqual(action["fields"]["end_time"], "2026-06-17T15:00:00+08:00")
         self.assertEqual(action["fields"]["attendees"], ["a@example.com", "b@example.com"])
+        self.assertEqual(action["fields"]["timezone_str"], "Asia/Shanghai")
         self.assertEqual(action["fields"]["description"], "Discuss plan.")
 
     def test_calendar_handoff_requires_reviewed_flag(self):
@@ -156,20 +172,33 @@ class CalendarEventHandoffTests(unittest.TestCase):
             prepare_calendar_event_handoff(calendar_request(), reviewed=False)
 
     def test_calendar_handoff_rejects_missing_required_fields(self):
-        with self.assertRaisesRegex(HandoffValidationError, "time_window"):
-            prepare_calendar_event_handoff(calendar_request(time_window=""), reviewed=True)
+        with self.assertRaisesRegex(HandoffValidationError, "end_time"):
+            prepare_calendar_event_handoff(calendar_request(end_time=""), reviewed=True)
 
-    def test_calendar_handoff_validates_but_does_not_create_event(self):
+    def test_calendar_handoff_rejects_non_rfc3339_times(self):
+        with self.assertRaisesRegex(HandoffValidationError, "RFC3339"):
+            prepare_calendar_event_handoff(
+                calendar_request(start_time="next Wednesday afternoon"),
+                reviewed=True,
+            )
+
+    def test_calendar_handoff_builds_create_event_arguments(self):
         result = prepare_calendar_event_handoff(
             calendar_request(attendees="a@example.com; b@example.com"),
             reviewed=True,
         )
 
         self.assertEqual(result["mode"], "calendar_event_handoff")
-        self.assertEqual(result["status"], "blocked_missing_connector")
+        self.assertEqual(result["status"], "ready_for_mcp")
+        self.assertEqual(result["mcp_tool"], "mcp__codex_apps__google_calendar._create_event")
         self.assertEqual(result["arguments"]["title"], "Customer visit")
+        self.assertEqual(result["arguments"]["start_time"], "2026-06-17T14:00:00+08:00")
+        self.assertEqual(result["arguments"]["end_time"], "2026-06-17T15:00:00+08:00")
         self.assertEqual(result["arguments"]["attendees"], ["a@example.com", "b@example.com"])
+        self.assertEqual(result["arguments"]["calendar_id"], "primary")
+        self.assertEqual(result["arguments"]["timezone_str"], "Asia/Shanghai")
         self.assertFalse(result["safety"]["creates_event"])
+        self.assertTrue(result["safety"]["connector_available"])
 
 
 if __name__ == "__main__":

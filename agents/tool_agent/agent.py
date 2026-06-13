@@ -34,6 +34,22 @@ FIELD_LABELS = (
     "time",
     "time_window",
     "when",
+    "开始",
+    "开始时间",
+    "start",
+    "start_time",
+    "结束",
+    "结束时间",
+    "end",
+    "end_time",
+    "时区",
+    "timezone",
+    "timezone_str",
+    "地点",
+    "location",
+    "日历",
+    "calendar",
+    "calendar_id",
     "参会人",
     "参与人",
     "attendees",
@@ -110,12 +126,29 @@ def extract_calendar_fields(user_request: str) -> dict[str, Any]:
             user_request,
             ("时间窗口", "时间", "time_window", "time", "when"),
         ),
+        "start_time": _extract_labeled_value(
+            user_request,
+            ("开始时间", "开始", "start_time", "start"),
+        ),
+        "end_time": _extract_labeled_value(
+            user_request,
+            ("结束时间", "结束", "end_time", "end"),
+        ),
         "attendees": _split_attendees(
             _extract_labeled_value(
                 user_request,
                 ("参会人", "参与人", "attendees", "attendee"),
             )
         ),
+        "timezone_str": _extract_labeled_value(
+            user_request,
+            ("时区", "timezone_str", "timezone"),
+        ),
+        "calendar_id": _extract_labeled_value(
+            user_request,
+            ("日历", "calendar_id", "calendar"),
+        ),
+        "location": _extract_labeled_value(user_request, ("地点", "location")),
         "description": _extract_labeled_value(
             user_request,
             ("描述", "description", "内容", "content", "正文", "body"),
@@ -156,7 +189,12 @@ def build_action(intent: str, user_request: str) -> dict:
             "fields": {
                 "title": calendar_fields["title"],
                 "time_window": calendar_fields["time_window"],
+                "start_time": calendar_fields["start_time"],
+                "end_time": calendar_fields["end_time"],
                 "attendees": calendar_fields["attendees"],
+                "timezone_str": calendar_fields["timezone_str"],
+                "calendar_id": calendar_fields["calendar_id"],
+                "location": calendar_fields["location"],
                 "description": calendar_fields["description"] or user_request,
             },
             "notes": (
@@ -224,6 +262,16 @@ def load_request(path: Path) -> dict[str, Any]:
 
 def _non_empty(value: Any) -> str:
     return str(value or "").strip()
+
+
+def _is_rfc3339_datetime(value: str) -> bool:
+    if not re.search(r"(Z|[+-]\d{2}:\d{2})$", value):
+        return False
+    try:
+        datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    return "T" in value
 
 
 def prepare_gmail_draft_handoff(
@@ -334,30 +382,50 @@ def prepare_calendar_event_handoff(
     args: dict[str, Any] = {
         "title": _non_empty(fields.get("title")),
         "time_window": _non_empty(fields.get("time_window")),
+        "start_time": _non_empty(fields.get("start_time")),
+        "end_time": _non_empty(fields.get("end_time")),
         "attendees": _split_attendees(fields.get("attendees")),
         "description": _non_empty(fields.get("description")),
     }
 
-    missing = [key for key in ("title", "time_window") if not args[key]]
+    for optional_key in ("calendar_id", "timezone_str", "location"):
+        value = fields.get(optional_key)
+        if _non_empty(value):
+            args[optional_key] = _non_empty(value)
+
+    add_google_meet = fields.get("add_google_meet")
+    if isinstance(add_google_meet, bool):
+        args["add_google_meet"] = add_google_meet
+
+    missing = [key for key in ("title", "start_time", "end_time") if not args[key]]
     if missing:
         raise HandoffValidationError(
             "Missing required calendar field(s): " + ", ".join(missing)
         )
+    invalid_times = [
+        key for key in ("start_time", "end_time") if not _is_rfc3339_datetime(args[key])
+    ]
+    if invalid_times:
+        raise HandoffValidationError(
+            "Calendar field(s) must be RFC3339 datetime(s): " + ", ".join(invalid_times)
+        )
+
+    args.pop("time_window", None)
 
     return {
         "mode": "calendar_event_handoff",
-        "status": "blocked_missing_connector",
+        "status": "ready_for_mcp",
         "provider": "calendar_mcp",
-        "mcp_tool": "",
+        "mcp_tool": "mcp__codex_apps__google_calendar._create_event",
         "created_at": _now_bjt().isoformat(timespec="seconds"),
         "source_request_path": str(source_path) if source_path else "",
         "arguments": args,
         "safety": {
             "creates_event": False,
             "requires_review": True,
-            "connector_available": False,
+            "connector_available": True,
         },
-        "message": "Calendar MCP is not available in this Codex session yet.",
+        "message": "Pass arguments to Google Calendar MCP _create_event after user approval.",
     }
 
 
@@ -411,8 +479,13 @@ def main() -> None:
     )
     parser.add_argument("--title", help="Reviewed calendar event title override.")
     parser.add_argument("--time-window", help="Reviewed calendar event time-window override.")
+    parser.add_argument("--start-time", help="Reviewed RFC3339 calendar event start time.")
+    parser.add_argument("--end-time", help="Reviewed RFC3339 calendar event end time.")
+    parser.add_argument("--timezone", help="Reviewed IANA timezone name.")
     parser.add_argument("--attendees", help="Reviewed comma-separated attendees override.")
     parser.add_argument("--description", help="Reviewed calendar event description override.")
+    parser.add_argument("--location", help="Reviewed calendar event location override.")
+    parser.add_argument("--calendar-id", help="Reviewed Google Calendar ID override.")
     args = parser.parse_args()
 
     if args.gmail_draft_handoff and args.calendar_event_handoff:
@@ -446,8 +519,13 @@ def main() -> None:
                 overrides={
                     "title": args.title,
                     "time_window": args.time_window,
+                    "start_time": args.start_time,
+                    "end_time": args.end_time,
+                    "timezone_str": args.timezone,
                     "attendees": args.attendees,
                     "description": args.description,
+                    "location": args.location,
+                    "calendar_id": args.calendar_id,
                 },
             )
         except HandoffValidationError as exc:
