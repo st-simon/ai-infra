@@ -15,6 +15,8 @@
 - [x] 简报发送到指定位置（本地邮件草稿 HTML / EML）
 - [x] Gmail MCP 可用后创建 Gmail 草稿
 - [x] 正式运行生成 Gmail 草稿请求（Codex/Gmail MCP draft-only handoff）
+- [x] 增加 `.env.example`，明确 `AI_INFRA_BRIEFING_TO` 等本地配置
+- [ ] 观察下一次 launchd 自动运行是否生成 Gmail 草稿请求
 - [ ] 草稿模式验证后再决定是否每日自动发送
 
 ## Phase 1 基础设施收口

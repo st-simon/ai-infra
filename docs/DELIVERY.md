@@ -20,6 +20,10 @@ Current implementation supports Gmail draft handoff. The local Python process
 writes a draft request under `logs/`, and Codex uses the Gmail MCP connector to
 create the Gmail draft.
 
+Phase 1 should be judged by whether the Markdown briefing is reliable and
+readable. HTML, EML, and Gmail request JSON are delivery packaging, not separate
+editorial formats to maintain by hand.
+
 Each real run writes:
 
 ```text
@@ -56,6 +60,9 @@ Set the recipient locally, not in committed config:
 ```bash
 AI_INFRA_BRIEFING_TO=your-address@example.com
 ```
+
+The key is case-sensitive and must be spelled exactly as
+`AI_INFRA_BRIEFING_TO`.
 
 `scripts/run_news_briefing.sh` loads `.env` before running the agent, so launchd
 can use this value without committing the address.

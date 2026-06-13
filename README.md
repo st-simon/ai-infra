@@ -37,6 +37,12 @@ ai-infra/
 └── logs/                   # 简报输出目录
 ```
 
+当前本机路径：
+
+```text
+/Users/junxia/codex-projects/projects/ai-infra
+```
+
 ## 快速开始
 
 ```bash
@@ -50,6 +56,14 @@ python agents/news_briefing/agent.py
 python agents/news_briefing/agent.py --dry-run
 ```
 
+首次配置：
+
+```bash
+cp .env.example .env
+```
+
+然后在 `.env` 里填写 `AI_INFRA_BRIEFING_TO`。键名必须完全一致，launchd 运行脚本会自动加载 `.env`。
+
 ## 每日自动运行
 
 macOS 默认使用 `launchd` 定时运行：
@@ -62,12 +76,14 @@ scripts/install_daily_briefing_launchd.sh
 
 ## 简报发送
 
-正式运行会保留 Markdown 简报，生成本地邮件草稿备份，并准备 Gmail 草稿请求：
+Phase 1 的主交付物是稳定可读的 Markdown 简报。其他文件是为了可观察性和邮件交付而生成的附属产物：
 
 ```bash
-logs/email_drafts/*_briefing_email.html
-logs/email_drafts/*_briefing_email.eml
-logs/gmail_draft_requests/*_gmail_draft_request.json
+logs/*_briefing.md                              # source of record
+logs/source_health/*_source_health.jsonl        # source observability
+logs/email_drafts/*_briefing_email.html         # local email preview
+logs/email_drafts/*_briefing_email.eml          # local email backup
+logs/gmail_draft_requests/*_gmail_draft_request.json  # Gmail MCP handoff
 ```
 
 Gmail 草稿由 Codex 的 Gmail MCP 连接器创建；自动发送保持关闭。收件人通过本机 `.env` 的 `AI_INFRA_BRIEFING_TO` 配置，详见 `docs/DELIVERY.md`。

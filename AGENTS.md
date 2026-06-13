@@ -34,12 +34,13 @@ load_config → fetch_rss → filter_items → summarize → generate_briefing
 - 新闻 v2 已实现 30/30/25/15 配额、基础去重、多源轮转、按类别批量摘要、来源健康记录和 `--dry-run`
 - 每日自动运行优先使用 `docs/SCHEDULING.md` 中的 launchd 方案；`scheduler.py` 保留为前台备用
 - 正式运行会生成本地邮件草稿 HTML/EML，并在配置收件人后生成 Gmail 草稿请求；自动发送默认关闭，见 `docs/DELIVERY.md`
+- Phase 1 主交付物是 Markdown 简报；HTML/EML/Gmail request 是交付包装和排障产物
 
 ### 已知问题 / TODO
 - Reuters/AP/BBC RSS 在当前网络环境下连接失败（ConnectError），已有足够替代来源
 - Caixin Global 返回 403，暂时禁用
 - 完整多模型 benchmark 尚未跑完；当前仅有 `qwen2.5-coder:7b` quick baseline
-- Gmail MCP 已验证 labels/drafts/test draft；正式流程先生成 Gmail 草稿请求，自动发送需另行确认
+- Gmail MCP 已验证 labels/drafts/test draft；下一步观察 launchd 自动运行是否生成 Gmail 草稿请求，自动发送需另行确认
 
 ---
 

@@ -1,13 +1,15 @@
 # News Briefing Scheduling
 
-Date: 2026-06-12
+Date: 2026-06-13
 Scope: daily local run for `agents/news_briefing/agent.py`
 
 ## Decision
 
 Use `launchd` as the default daily automation path on macOS.
 
-Keep `scheduler.py` as a foreground fallback for development or manual long-running sessions. `launchd` is preferred because it does not require a Python process to stay open in a terminal.
+Keep `scheduler.py` only as a foreground fallback for development or manual
+long-running sessions. The Phase 1 production path is `launchd`; do not run both
+automation paths at the same time.
 
 ## Daily Schedule
 
@@ -74,7 +76,14 @@ Briefing outputs:
 ```bash
 logs/*_briefing.md
 logs/source_health/*_source_health.jsonl
+logs/email_drafts/*_briefing_email.html
+logs/email_drafts/*_briefing_email.eml
+logs/gmail_draft_requests/*_gmail_draft_request.json
 ```
+
+If Markdown and local email drafts are created but no Gmail request appears,
+check that `.env` contains a non-empty `AI_INFRA_BRIEFING_TO` entry. The key name
+is case-sensitive.
 
 ## Manual Trigger
 

@@ -15,6 +15,7 @@ venv/
 # Local configuration
 .env
 .env.*
+!.env.example
 
 # Runtime outputs
 logs/
