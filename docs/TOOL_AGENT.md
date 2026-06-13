@@ -184,9 +184,37 @@ Example:
 
 No Gmail, Calendar, or external task-system action is taken.
 
+List local tasks:
+
+```bash
+.venv/bin/python agents/tool_agent/agent.py --list-tasks
+```
+
+Filter by status:
+
+```bash
+.venv/bin/python agents/tool_agent/agent.py --list-tasks --task-status planned
+```
+
+Update status:
+
+```bash
+.venv/bin/python agents/tool_agent/agent.py \
+  --update-task-status task_20260613T2035001234560800 \
+  --new-status done
+```
+
+Supported statuses:
+
+- `planned`
+- `in_progress`
+- `done`
+- `blocked`
+- `canceled`
+
 ## Next Steps
 
 - Exercise the Calendar path with a real reviewed event, first by creating a
   draft-equivalent request JSON and then by explicitly approving MCP event
   creation.
-- Add task status updates and list/search commands for local task records.
+- Add task text search and due-date filters for local task records.

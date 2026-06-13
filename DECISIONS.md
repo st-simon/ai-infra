@@ -187,5 +187,7 @@ Consequences:
   language.
 - Non-dry-run task requests write both the original request JSON under
   `logs/tool_agent_requests/` and a task record under `logs/tool_tasks/`.
-- Task records start with `status=planned`; status update, list, and search
-  commands are future Phase 2B follow-ups.
+- Task records start with `status=planned`.
+- Local task records can be listed, filtered by status, and updated to
+  `planned`, `in_progress`, `done`, `blocked`, or `canceled`.
+- Text search and due-date filters are future Phase 2B follow-ups.

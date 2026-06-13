@@ -20,6 +20,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 REQUEST_DIR = PROJECT_ROOT / "logs" / "tool_agent_requests"
 TASK_LOG_DIR = PROJECT_ROOT / "logs" / "tool_tasks"
 DEFAULT_CALENDAR_TIMEZONE = "America/New_York"
+TASK_STATUSES = {"planned", "in_progress", "done", "blocked", "canceled"}
 FIELD_LABELS = (
     "收件人",
     "recipient",
@@ -323,15 +324,18 @@ def build_task_record(
     if not title:
         raise HandoffValidationError("Task title is required.")
 
-    created_at = _now_bjt().isoformat(timespec="seconds")
+    created_at = _now_bjt().isoformat(timespec="microseconds")
     task_id = "task_" + re.sub(r"[^0-9T]", "", created_at)
+    status = _non_empty(fields.get("status")) or "planned"
+    if status not in TASK_STATUSES:
+        raise HandoffValidationError(f"Unsupported task status: {status}")
     return {
         "schema_version": 1,
         "task_id": task_id,
         "agent": "tool_agent",
         "created_at": created_at,
         "updated_at": created_at,
-        "status": _non_empty(fields.get("status")) or "planned",
+        "status": status,
         "title": title,
         "due": _non_empty(fields.get("due")),
         "context": _non_empty(fields.get("context")),
@@ -351,6 +355,72 @@ def record_task_log(
     task_path = task_dir / f"{record['task_id']}.json"
     task_path.write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8")
     return task_path
+
+
+def load_task_record(path: Path) -> dict[str, Any]:
+    try:
+        record = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise HandoffValidationError(f"Task file does not exist: {path}") from exc
+    except json.JSONDecodeError as exc:
+        raise HandoffValidationError(f"Task file is not valid JSON: {path}") from exc
+
+    if not isinstance(record, dict):
+        raise HandoffValidationError("Task file must contain a JSON object.")
+    if record.get("schema_version") != 1:
+        raise HandoffValidationError("Only schema_version=1 task records are supported.")
+    if not _non_empty(record.get("task_id")):
+        raise HandoffValidationError("Task record is missing task_id.")
+    return record
+
+
+def find_task_path(identifier: str, *, task_dir: Path = TASK_LOG_DIR) -> Path:
+    candidate = Path(identifier)
+    if candidate.exists():
+        return candidate
+
+    task_id = candidate.stem if candidate.suffix == ".json" else identifier
+    task_path = task_dir / f"{task_id}.json"
+    if task_path.exists():
+        return task_path
+
+    raise HandoffValidationError(f"Task record not found: {identifier}")
+
+
+def list_task_records(
+    *,
+    task_dir: Path = TASK_LOG_DIR,
+    status: str | None = None,
+) -> list[dict[str, Any]]:
+    if status and status not in TASK_STATUSES:
+        raise HandoffValidationError(f"Unsupported task status: {status}")
+    if not task_dir.exists():
+        return []
+
+    records = []
+    for task_path in sorted(task_dir.glob("*.json")):
+        record = load_task_record(task_path)
+        if status and record.get("status") != status:
+            continue
+        records.append(record)
+    return sorted(records, key=lambda record: str(record.get("created_at", "")))
+
+
+def update_task_status(
+    identifier: str,
+    status: str,
+    *,
+    task_dir: Path = TASK_LOG_DIR,
+) -> dict[str, Any]:
+    if status not in TASK_STATUSES:
+        raise HandoffValidationError(f"Unsupported task status: {status}")
+
+    task_path = find_task_path(identifier, task_dir=task_dir)
+    record = load_task_record(task_path)
+    record["status"] = status
+    record["updated_at"] = _now_bjt().isoformat(timespec="seconds")
+    task_path.write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8")
+    return record
 
 
 def load_request(path: Path) -> dict[str, Any]:
@@ -620,10 +690,27 @@ def main() -> None:
     parser.add_argument("--location", help="Reviewed calendar event location override.")
     parser.add_argument("--calendar-id", help="Reviewed Google Calendar ID override.")
     parser.add_argument("--reminder-minutes", help="Reviewed reminder offset in minutes.")
+    parser.add_argument("--list-tasks", action="store_true", help="List local task records.")
+    parser.add_argument("--task-status", help="Filter local tasks by status.")
+    parser.add_argument(
+        "--update-task-status",
+        metavar="TASK_ID_OR_PATH",
+        help="Update a local task record status.",
+    )
+    parser.add_argument("--new-status", help="New status for --update-task-status.")
     args = parser.parse_args()
 
-    if args.gmail_draft_handoff and args.calendar_event_handoff:
-        parser.error("use only one handoff mode at a time")
+    mode_count = sum(
+        bool(value)
+        for value in (
+            args.gmail_draft_handoff,
+            args.calendar_event_handoff,
+            args.list_tasks,
+            args.update_task_status,
+        )
+    )
+    if mode_count > 1:
+        parser.error("use only one handoff or task-management mode at a time")
 
     if args.gmail_draft_handoff:
         try:
@@ -667,6 +754,35 @@ def main() -> None:
             parser.error(str(exc))
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return
+
+    if args.list_tasks:
+        try:
+            tasks = list_task_records(status=args.task_status)
+        except HandoffValidationError as exc:
+            parser.error(str(exc))
+        print(json.dumps({
+            "mode": "local_task_list",
+            "status_filter": args.task_status or "",
+            "count": len(tasks),
+            "tasks": tasks,
+        }, ensure_ascii=False, indent=2))
+        return
+
+    if args.update_task_status:
+        if not args.new_status:
+            parser.error("--new-status is required with --update-task-status")
+        try:
+            task = update_task_status(args.update_task_status, args.new_status)
+        except HandoffValidationError as exc:
+            parser.error(str(exc))
+        print(json.dumps({
+            "mode": "local_task_status_update",
+            "task": task,
+        }, ensure_ascii=False, indent=2))
+        return
+
+    if args.task_status:
+        parser.error("--task-status requires --list-tasks")
 
     if not args.request:
         parser.error("request is required unless a handoff mode is used")

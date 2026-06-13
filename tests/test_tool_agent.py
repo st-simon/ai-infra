@@ -1,3 +1,4 @@
+import json
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -10,9 +11,11 @@ from agents.tool_agent.agent import (
     extract_calendar_fields,
     extract_email_fields,
     extract_task_fields,
+    list_task_records,
     prepare_calendar_event_handoff,
     prepare_gmail_draft_handoff,
     record_task_log,
+    update_task_status,
 )
 
 
@@ -295,6 +298,39 @@ class LocalTaskLogTests(unittest.TestCase):
             record = task_path.read_text(encoding="utf-8")
             self.assertIn("Prepare meeting notes", record)
             self.assertIn("logs/tool_agent_requests/example.json", record)
+
+    def test_list_task_records_filters_by_status(self):
+        with TemporaryDirectory() as tmpdir:
+            task_dir = Path(tmpdir)
+            record_task_log(task_request(title="Planned task"), task_dir=task_dir)
+            done_path = record_task_log(task_request(title="Done task"), task_dir=task_dir)
+            update_task_status(done_path.name, "done", task_dir=task_dir)
+
+            planned_tasks = list_task_records(task_dir=task_dir, status="planned")
+            done_tasks = list_task_records(task_dir=task_dir, status="done")
+
+            self.assertEqual([task["title"] for task in planned_tasks], ["Planned task"])
+            self.assertEqual([task["title"] for task in done_tasks], ["Done task"])
+
+    def test_update_task_status_by_id(self):
+        with TemporaryDirectory() as tmpdir:
+            task_dir = Path(tmpdir)
+            task_path = record_task_log(task_request(), task_dir=task_dir)
+            task_id = json.loads(task_path.read_text(encoding="utf-8"))["task_id"]
+
+            updated = update_task_status(task_id, "in_progress", task_dir=task_dir)
+
+            self.assertEqual(updated["status"], "in_progress")
+            saved = json.loads(task_path.read_text(encoding="utf-8"))
+            self.assertEqual(saved["status"], "in_progress")
+
+    def test_update_task_status_rejects_unknown_status(self):
+        with TemporaryDirectory() as tmpdir:
+            task_dir = Path(tmpdir)
+            task_path = record_task_log(task_request(), task_dir=task_dir)
+
+            with self.assertRaisesRegex(HandoffValidationError, "Unsupported task status"):
+                update_task_status(str(task_path), "waiting", task_dir=task_dir)
 
 
 if __name__ == "__main__":

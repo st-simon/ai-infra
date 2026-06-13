@@ -52,8 +52,9 @@
 - [x] Calendar handoff 默认使用当前连接日历显示时区；显式时区优先
 - [ ] 真实 Calendar 事件创建闭环验证（reviewed request → MCP create_event）
 - [x] 本地 task-log：task_note 写入 `logs/tool_tasks/*.json`
+- [x] 本地任务列表和状态更新（planned / in_progress / done / blocked / canceled）
 - [ ] 自然语言日程管理（"下周三下午安排客户拜访"）
-- [ ] 任务状态更新 / 列表 / 搜索
+- [ ] 本地任务搜索 / 截止日期筛选
 
 ## Phase 3：研究 Agent 🔲
 
