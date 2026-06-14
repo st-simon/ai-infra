@@ -89,7 +89,14 @@ logs/email_drafts/*_briefing_email.eml          # local email backup
 logs/gmail_draft_requests/*_gmail_draft_request.json  # Gmail MCP handoff
 ```
 
-Gmail 草稿由 Codex 的 Gmail MCP 连接器创建；自动发送保持关闭。收件人通过本机 `.env` 的 `AI_INFRA_BRIEFING_TO` 配置，详见 `docs/DELIVERY.md`。
+Gmail 草稿由 Codex 的 Gmail MCP 连接器创建；自动发送保持关闭。收件人通过本机 `.env` 的 `AI_INFRA_BRIEFING_TO` 配置。
+
+每日链路分两段：
+
+1. `launchd` 在 07:00 生成 Markdown、本地邮件备份和 Gmail request JSON。
+2. Codex automation `ai-infra-daily-gmail-draft-handoff` 在 07:45 消费 request JSON，创建 Gmail 草稿。
+
+详见 `docs/DELIVERY.md`。
 
 ## 环境变量
 

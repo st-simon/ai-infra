@@ -15,6 +15,16 @@ automation paths at the same time.
 
 The launchd template runs once per day at 07:00 local Mac time.
 
+Gmail draft creation is a second step handled by Codex automation at 07:45 local
+Mac time:
+
+```text
+ai-infra-daily-gmail-draft-handoff
+```
+
+This automation consumes `logs/gmail_draft_requests/*_gmail_draft_request.json`
+and creates the Gmail draft through Gmail MCP. It does not send email.
+
 Project path:
 
 ```bash
@@ -84,6 +94,9 @@ logs/gmail_draft_requests/*_gmail_draft_request.json
 If Markdown and local email drafts are created but no Gmail request appears,
 check that `.env` contains a non-empty `AI_INFRA_BRIEFING_TO` entry. The key name
 is case-sensitive.
+
+If a Gmail request exists but no Gmail draft appears, check the Codex automation
+`ai-infra-daily-gmail-draft-handoff`.
 
 ## Manual Trigger
 
