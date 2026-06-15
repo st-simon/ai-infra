@@ -129,5 +129,8 @@ Use this only when you want a visible long-running Python process:
 
 ```bash
 cd /Users/junxia/codex-projects/projects/ai-infra
-.venv/bin/python scheduler.py --no-run-now
+.venv/bin/python scheduler.py
 ```
+
+Use `.venv/bin/python scheduler.py --run-now` only when you want one immediate
+briefing run before the foreground scheduler starts.
