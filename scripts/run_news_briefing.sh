@@ -12,4 +12,15 @@ fi
 
 export OLLAMA_MAX_LOADED_MODELS="${OLLAMA_MAX_LOADED_MODELS:-1}"
 
-exec "$PROJECT_ROOT/.venv/bin/python" "$PROJECT_ROOT/agents/news_briefing/agent.py"
+"$PROJECT_ROOT/.venv/bin/python" "$PROJECT_ROOT/agents/news_briefing/agent.py"
+
+gmail_api_mode="${AI_INFRA_GMAIL_API_DRAFT_ENABLED:-auto}"
+case "$gmail_api_mode" in
+  0|false|False|FALSE|no|No|NO|off|Off|OFF)
+    exit 0
+    ;;
+esac
+
+"$PROJECT_ROOT/.venv/bin/python" \
+  "$PROJECT_ROOT/scripts/gmail_api_create_draft_from_request.py" \
+  --latest

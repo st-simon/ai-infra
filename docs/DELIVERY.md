@@ -94,6 +94,13 @@ As of 2026-06-15, the Codex automation responsible for this handoff is:
 ai-infra-daily-gmail-draft-handoff
 ```
 
+This is a staged solution. If Codex App is closed or unavailable, the local
+launchd job may still generate the request JSON, but Gmail draft creation is not
+guaranteed. The local Gmail API draft-only smoke test passed on 2026-06-16.
+The local request consumer has also been verified and wired into
+`scripts/run_news_briefing.sh`, so future launchd runs can create Gmail drafts
+without Codex App while preserving draft-only behavior.
+
 Do not auto-send until these are explicit:
 
 - recipient

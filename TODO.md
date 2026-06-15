@@ -17,7 +17,10 @@
 - [x] 正式运行生成 Gmail 草稿请求（Codex/Gmail MCP draft-only handoff）
 - [x] 增加 `.env.example`，明确 `AI_INFRA_BRIEFING_TO` 等本地配置
 - [x] 建立 Codex automation 消费 Gmail request 并创建 Gmail 草稿
-- [ ] 观察下一次完整自动链路是否在 Gmail 草稿箱出现简报
+- [x] 接入本地 Gmail API request consumer，避免依赖 Codex App 在线消费 request
+- [x] 先验证本地 Gmail API draft-only smoke test
+- [x] 验证本地 request JSON → Gmail API draft-only 草稿创建
+- [ ] 观察下一次 launchd 完整自动链路是否在 Gmail 草稿箱出现简报
 - [ ] 草稿模式验证后再决定是否每日自动发送
 
 ## Phase 1 基础设施收口
