@@ -8,18 +8,23 @@ modes:
   auto:
     provider: local
   quality:
-    provider: local
+    provider: openai
 
 roles:
   fast:
     local: qwen35-fast
+    openai: gpt-5
   general:
     local: qwen35-fast
+    openai: gpt-5
   generalist:
     local: qwen35-fast
+    openai: gpt-5
   reasoner:
     local: qwen35-fast
+    openai: gpt-5
   coder:
     local: qwen2.5-coder:7b
+    openai: gpt-5
   embedding:
     local: ""

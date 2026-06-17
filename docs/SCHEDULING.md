@@ -1,19 +1,23 @@
 # News Briefing Scheduling
 
 Date: 2026-06-13
-Scope: daily local run for `agents/news_briefing/agent.py`
+Scope: daily scheduling for `agents/news_briefing/agent.py`
 
 ## Decision
 
-Use `launchd` as the default daily automation path on macOS.
+Use Cloud Run Job + Cloud Scheduler as the production automation path so the
+daily briefing does not depend on the Mac being awake or online. See
+`docs/CLOUD_RUN_AUTOMATION.md`.
 
-Keep `scheduler.py` only as a foreground fallback for development or manual
-long-running sessions. The Phase 1 production path is `launchd`; do not run both
-automation paths at the same time.
+Keep `launchd` and `scheduler.py` only as local fallback/debugging paths. Do not
+run multiple production schedulers at the same time.
 
 ## Daily Schedule
 
-The launchd template runs once per day at 07:00 local Mac time.
+The Cloud Scheduler target should run once per day at 07:13 Asia/Shanghai.
+
+The launchd template runs once per day at 07:00 local Mac time when the local
+fallback is installed.
 
 Gmail draft creation is handled locally after the news briefing script succeeds.
 `scripts/run_news_briefing.sh` consumes the newest

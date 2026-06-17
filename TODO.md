@@ -20,7 +20,9 @@
 - [x] 接入本地 Gmail API request consumer，避免依赖 Codex App 在线消费 request
 - [x] 先验证本地 Gmail API draft-only smoke test
 - [x] 验证本地 request JSON → Gmail API draft-only 草稿创建
-- [ ] 观察下一次 launchd 完整自动链路是否在 Gmail 草稿箱出现简报
+- [ ] 部署 Cloud Run Job + Cloud Scheduler 作为不依赖 Mac 开机的主自动化链路
+- [ ] Cloud Run 手动执行 smoke test：确认 Gmail 草稿箱出现当日简报
+- [ ] Cloud Scheduler 次日自动触发验证
 - [ ] 草稿模式验证后再决定是否每日自动发送
 
 ## Phase 1 基础设施收口

@@ -75,9 +75,14 @@ def get_credentials(client_file: Path, token_file: Path):
         flow = InstalledAppFlow.from_client_secrets_file(str(client_file), SCOPES)
         creds = flow.run_local_server(port=0)
 
-    token_file.parent.mkdir(parents=True, exist_ok=True)
-    token_file.write_text(creds.to_json(), encoding="utf-8")
-    token_file.chmod(0o600)
+    try:
+        token_file.parent.mkdir(parents=True, exist_ok=True)
+        token_file.write_text(creds.to_json(), encoding="utf-8")
+        token_file.chmod(0o600)
+    except OSError:
+        # Cloud-managed file mounts can be read-only. The refreshed credentials
+        # are still valid in memory for this run.
+        pass
     return creds
 
 

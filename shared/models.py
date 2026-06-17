@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
 MODEL_POLICY_PATH = Path(__file__).resolve().parents[1] / "config" / "model_policy.yaml"
 
 FALLBACK_POLICY = {
@@ -97,9 +98,44 @@ def _post(payload: dict) -> dict:
 
 
 def _post_cloud(payload: dict) -> dict:
-    raise NotImplementedError(
-        "Cloud model provider is allowed by policy but is not wired in this phase."
+    provider = payload.pop("provider")
+    if provider == "openai":
+        return _post_openai(payload)
+    raise NotImplementedError(f"Unsupported cloud model provider: {provider}")
+
+
+def _post_openai(payload: dict) -> dict:
+    api_key = os.getenv("OPENAI_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY is required when provider=openai.")
+
+    response = httpx.post(
+        f"{OPENAI_BASE_URL}/responses",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        json=payload,
+        timeout=180.0,
+        trust_env=True,
     )
+    response.raise_for_status()
+    return response.json()
+
+
+def _extract_openai(result: dict) -> str:
+    texts = []
+    for item in result.get("output", []):
+        if item.get("type") != "message":
+            continue
+        for content in item.get("content", []):
+            if content.get("type") == "output_text":
+                text = str(content.get("text", "")).strip()
+                if text:
+                    texts.append(text)
+    if texts:
+        return "\n".join(texts).strip()
+    return str(result.get("output_text", "")).strip()
 
 
 def _extract(result: dict) -> str:
@@ -125,6 +161,16 @@ def chat(role: str, prompt: str,
          mode: str | None = None) -> str:
     provider, model = _select_model(role, mode)
     content = prompt if thinking else f"/no_think\n{prompt}"
+    if provider == "openai":
+        payload = {
+            "provider": provider,
+            "model": model,
+            "input": [{"role": "user", "content": content}],
+            "temperature": temperature,
+            "store": False,
+        }
+        return _extract_openai(_post_cloud(payload))
+
     payload = {
         "model": model,
         "messages": [{"role": "user", "content": content}],
@@ -134,7 +180,7 @@ def chat(role: str, prompt: str,
             "temperature": temperature,
         },
     }
-    result = _post(payload) if provider == "local" else _post_cloud(payload)
+    result = _post(payload)
     return _extract(result)
 
 def chat_with_history(role: str, messages: list[dict],
@@ -151,6 +197,16 @@ def chat_with_history(role: str, messages: list[dict],
         msgs[0] = first
     else:
         msgs = messages
+    if provider == "openai":
+        payload = {
+            "provider": provider,
+            "model": model,
+            "input": msgs,
+            "temperature": temperature,
+            "store": False,
+        }
+        return _extract_openai(_post_cloud(payload))
+
     payload = {
         "model": model,
         "messages": msgs,
@@ -160,5 +216,5 @@ def chat_with_history(role: str, messages: list[dict],
             "temperature": temperature,
         },
     }
-    result = _post(payload) if provider == "local" else _post_cloud(payload)
+    result = _post(payload)
     return _extract(result)

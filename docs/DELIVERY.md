@@ -3,6 +3,9 @@
 Date: 2026-06-13
 Scope: delivery path for `agents/news_briefing/agent.py`
 
+Production target: Cloud Run Job + Cloud Scheduler. Local `launchd` is a
+fallback/debugging path, not the reliability target.
+
 ## Decision
 
 Keep Markdown files in `logs/` as the source of record.
@@ -99,7 +102,10 @@ launchd job may still generate the request JSON, but Gmail draft creation is not
 guaranteed. The local Gmail API draft-only smoke test passed on 2026-06-16.
 The local request consumer has also been verified and wired into
 `scripts/run_news_briefing.sh`, so future launchd runs can create Gmail drafts
-without Codex App while preserving draft-only behavior.
+without Codex App while preserving draft-only behavior. The wrapper retries
+transient Gmail/OAuth failures before giving up; if it still fails, rerun
+`.venv/bin/python scripts/gmail_api_create_draft_from_request.py --latest`
+after network connectivity is restored.
 
 Do not auto-send until these are explicit:
 

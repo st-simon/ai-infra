@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import sys
 from datetime import datetime, timezone
@@ -85,8 +86,8 @@ def find_record(state: dict[str, Any], digest: str) -> dict[str, Any] | None:
 
 
 def default_private_files():
-    client_file = smoke.DEFAULT_CLIENT_FILE
-    private_file = getattr(smoke, "DEFAULT_TOKEN_FILE")
+    client_file = smoke._expand(os.getenv("GMAIL_OAUTH_CLIENT_FILE"), smoke.DEFAULT_CLIENT_FILE)
+    private_file = smoke._expand(os.getenv("GMAIL_OAUTH_TOKEN_FILE"), smoke.DEFAULT_TOKEN_FILE)
     if not client_file.exists() or not private_file.exists():
         raise DraftRequestError(
             "Missing local Gmail API authorization files. "

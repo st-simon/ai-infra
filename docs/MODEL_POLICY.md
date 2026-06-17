@@ -34,7 +34,8 @@ Modes describe cost, privacy, and quality preference:
 
 | Agent | Stage | Default mode | Notes |
 |---|---|---:|---|
-| News Briefing | fetch, filter, summarize, format | `local_only` | Cloud should not be required for daily operation. |
+| News Briefing local fallback | fetch, filter, summarize, format | `local_only` | Mac launchd/manual runs remain local-first. |
+| News Briefing cloud production | fetch, filter, summarize, format | `quality` | Cloud Run uses a configured cloud model so it does not depend on local Ollama. |
 | Tool Agent | calendar and email drafting | `local_only` or `auto` | Cloud use requires explicit privacy and authorization boundaries. |
 | Research | ingest, clean, embed, retrieve | `local_only` | Keep source collection and indexing cheap and private. |
 | Research | deep analysis and report generation | `quality` | Use cloud frontier models when configured. |

@@ -91,6 +91,24 @@ Implementation order:
 
 Reference: `docs/MODEL_POLICY.md`.
 
+## 2026-06-16: Cloud Run Becomes The Production Scheduling Target
+
+Decision: daily news briefing delivery must not depend on the Mac being awake,
+online, or running Codex. Use Google Cloud Run Jobs plus Cloud Scheduler as the
+stable production path, with the Mac `launchd` path retained only as a local
+fallback and debugging path.
+
+Implications:
+
+- Cloud production uses `MODEL_MODE=quality` and a cloud model provider.
+- Cloud production still creates Gmail drafts only; it must not auto-send.
+- Private provider and Gmail authorization values belong in Google Cloud
+  managed runtime configuration, not in Git.
+- Any Google Cloud console setup must include step-by-step user guidance and
+  official entry links.
+
+Reference: `docs/CLOUD_RUN_AUTOMATION.md`.
+
 ## 2026-06-13: Tool Agent Starts With MCP Handoff Requests
 
 Decision: start Phase 2 with a local request planner instead of direct Gmail or

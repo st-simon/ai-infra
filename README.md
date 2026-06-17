@@ -114,6 +114,7 @@ Gmail 草稿由 Codex 的 Gmail MCP 连接器创建；自动发送保持关闭�
 - `DECISIONS.md`：长期设计决策
 - `docs/SCHEDULING.md`：每日自动运行、launchd 安装与排查
 - `docs/DELIVERY.md`：邮件草稿、Gmail 草稿边界和自动发送策略
+- `docs/CLOUD_RUN_AUTOMATION.md`：Cloud Run Job + Cloud Scheduler 稳定云端主链路
 - `docs/GMAIL_API_AUTOMATION.md`：本地 Gmail API draft-only smoke test 和 request consumer 自动化
 - `docs/TOOL_AGENT.md`：Phase 2 工具 Agent 的 MCP handoff 边界
 - `docs/MODEL_POLICY.md`：本地+云端混合模型策略与执行顺序

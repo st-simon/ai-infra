@@ -49,3 +49,22 @@ showed `ai-infra Gmail API request consumer smoke test`; no email was sent.
 `scripts/run_news_briefing.sh` now runs the consumer after the news briefing
 agent succeeds. Set `AI_INFRA_GMAIL_API_DRAFT_ENABLED=false` to disable this
 step.
+
+The wrapper retries transient Gmail/OAuth failures by default:
+
+```bash
+AI_INFRA_GMAIL_API_DRAFT_ATTEMPTS=3
+AI_INFRA_GMAIL_API_DRAFT_RETRY_SECONDS=120
+```
+
+`launchd` does not load interactive shell files such as `~/.zprofile`. If Google
+APIs require a local proxy, put `http_proxy`, `https_proxy`, `all_proxy`, and
+`no_proxy` in the project `.env`; keeping them only in the shell profile is not
+enough for the scheduled run.
+
+If a launchd run creates Markdown/HTML/EML/request files but no Gmail draft,
+recover manually with:
+
+```bash
+.venv/bin/python scripts/gmail_api_create_draft_from_request.py --latest
+```
